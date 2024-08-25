@@ -9,12 +9,16 @@ const rl = readline.createInterface({
 
 function readMessage() {
     return new Promise((resolve, reject) => {
-        let rawLength = '';
+        let rawLength = Buffer.alloc(4);
         process.stdin.once('data', (chunk) => {
-            rawLength += chunk;
+            chunk.copy(rawLength);
             const messageLength = rawLength.readUInt32LE(0);
-            const message = rawLength.slice(4, 4 + messageLength).toString();
-            resolve(JSON.parse(message));
+            const messageBuffer = Buffer.alloc(messageLength);
+            process.stdin.once('data', (chunk) => {
+                chunk.copy(messageBuffer);
+                const message = messageBuffer.toString();
+                resolve(JSON.parse(message));
+            });
         });
     });
 }
@@ -30,27 +34,33 @@ function sendMessage(message) {
 
 async function handleMessages() {
     while (true) {
-        const message = await readMessage();
-        if (message.command === 'getPublicKey') {
-            exec('gpg --card-status', (error, stdout, stderr) => {
-                if (error) {
-                    sendMessage({ error: error.message });
-                } else {
-                    const publicKey = parsePublicKey(stdout);
-                    sendMessage({ publicKey });
-                }
-            });
-        } else if (message.command === 'signMessage') {
-            const { hexString } = message;
-            exec(`echo ${hexString} | gpg --sign --armor`, (error, stdout, stderr) => {
-                if (error) {
-                    sendMessage({ error: error.message });
-                } else {
-                    sendMessage({ signature: stdout });
-                }
-            });
-        } else {
-            sendMessage({ error: 'Unknown command' });
+        try {
+            const message = await readMessage();
+            if (message.command === 'getPublicKey') {
+                sendMessage({ error: 'Not implemented' });
+                // exec('gpg --card-status', (error, stdout, stderr) => {
+                //     if (error) {
+                //         sendMessage({ error: error.message });
+                //     } else {
+                //         const publicKey = parsePublicKey(stdout);
+                //         sendMessage({ publicKey });
+                //     }
+                // });
+            } else if (message.command === 'signMessage') {
+                sendMessage({ error: 'Not implemented' });
+                // const { hexString } = message;
+                // exec(`echo ${hexString} | gpg --sign --armor`, (error, stdout, stderr) => {
+                //     if (error) {
+                //         sendMessage({ error: error.message });
+                //     } else {
+                //         sendMessage({ signature: stdout });
+                //     }
+                // });
+            } else {
+                sendMessage({ error: 'Unknown command' });
+            }
+        } catch (error) {
+            sendMessage({ error: error.message });
         }
     }
 }
