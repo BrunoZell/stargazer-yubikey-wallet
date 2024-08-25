@@ -5,6 +5,7 @@
     "author": "Bruno Zell",
     "license": "MIT",
     "main": "yubikey-wallet.js",
+    "bin": "yubikey-wallet.js",
     "scripts": {
         "start": "node yubikey-wallet.js",
         "build": "npx pkg . --out-path ../dist"
