@@ -1,0 +1,4 @@
+[submodule "stargazer-wallet-ext"]
+	path = stargazer-wallet-ext
+	url = git@github.com:BrunoZell/stargazer-wallet-ext.git
+	branch = yubikey
