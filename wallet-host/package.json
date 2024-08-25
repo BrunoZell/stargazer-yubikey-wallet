@@ -1,0 +1,20 @@
+{
+    "name": "yubikey-wallet",
+    "version": "1.0.0",
+    "description": "Native Messaging Host to grant Stargazer Wallet access to a Yubikey as a hardware wallet.",
+    "author": "Bruno Zell",
+    "license": "MIT",
+    "main": "yubikey-wallet.js",
+    "scripts": {
+        "start": "node yubikey-wallet.js",
+        "build": "pkg . --out-path ../dist"
+    },
+    "dependencies": {
+        "child_process": "^1.0.2",
+        "gpg": "^1.0.0"
+    },
+    "pkg": {
+        "targets": ["node14-win-x64", "node14-macos-x64", "node14-linux-x64"],
+        "outputPath": "../dist"
+    }
+}
