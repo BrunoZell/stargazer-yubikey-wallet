@@ -5,6 +5,7 @@
     "workspaces": [
         "wallet-host",
         "wallet-host-installer",
+        "stargazer-wallet-ext",
         "stargazer-wallet-ext/source/web"
     ],
     "scripts": {
