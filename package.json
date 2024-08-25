@@ -4,9 +4,11 @@
     "private": true,
     "workspaces": [
         "wallet-host",
-        "wallet-host-installer"
+        "wallet-host-installer",
+        "stargazer-wallet-ext/source/web"
     ],
     "scripts": {
-        "install-wallet": "npm --prefix wallet-host-installer run install-wallet"
+        "install-wallet": "yarn workspace wallet-host-installer install-wallet",
+        "build-extension": "yarn workspace extension dev:chrome"
     }
 }
