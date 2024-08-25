@@ -25,19 +25,20 @@ function runNpmCommands(callback) {
 }
 
 function installOnWindows() {
-    const registryPath = 'HKLM\\SOFTWARE\\Google\\Chrome\\NativeMessagingHosts\\com.constellation.yubikey';
-    const manifestJsonPath = path.join('C:\\Program Files\\YubikeyWallet\\native-messaging-host.json');
-    const executablePath = path.join(__dirname, '../dist', 'yubikey-wallet.exe');
-
-    manifestJson.path = 'C:\\Program Files\\YubikeyWallet\\yubikey-wallet.exe';
-    const jsonString = JSON.stringify(manifestJson, null, 2);
+    const registryPath = 'HKCU\\SOFTWARE\\Google\\Chrome\\NativeMessagingHosts\\com.constellation.yubikey';
+    const executablePath = path.join(__dirname, '../dist', 'yubikey-wallet-win.exe');
+    const userHomeDir = os.homedir();
+    const appDir = path.join(userHomeDir, 'YubikeyWallet');
+    const manifestJsonPath = path.join(appDir, 'native-messaging-host.json');
+    manifestJson.path = path.join(appDir, 'yubikey-wallet.exe');
 
     // Ensure the directory exists
-    fs.mkdirSync(path.dirname(manifestJsonPath), { recursive: true });
-
+    fs.mkdirSync(appDir, { recursive: true });
+    
     // Write manifest json so Chrome recognizes the Wallet as a Native Messaging Host
+    const jsonString = JSON.stringify(manifestJson, null, 2);
     fs.writeFileSync(manifestJsonPath, jsonString);
-
+    
     // Copy the executable to the path
     fs.copyFileSync(executablePath, manifestJson.path);
 
@@ -52,8 +53,9 @@ function installOnWindows() {
 }
 
 function installOnMacLinux() {
+    const platform = os.platform();
     const manifestJsonPath = path.join(os.homedir(), '.config', 'google-chrome', 'NativeMessagingHosts', 'com.constellation.yubikey.json');
-    const executablePath = path.join(__dirname, '../dist', 'yubikey-wallet');
+    const executablePath = path.join(__dirname, '../dist', `yubikey-wallet${platform === 'darwin' ? '-macos' : '-linux'}`);
 
     manifestJson.path = '/usr/local/bin/yubikey-wallet';
     const jsonString = JSON.stringify(manifestJson, null, 2);
