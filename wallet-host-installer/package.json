@@ -2,16 +2,16 @@
     "name": "yubikey-wallet-installer",
     "version": "1.0.0",
     "description": "Installer for Yubikey Wallet Native Messaging Host",
+    "author": "Bruno Zell",
+    "license": "MIT",
     "main": "install.js",
     "scripts": {
-        "install": "node install.js"
+        "install-wallet": "node install.js"
     },
     "dependencies": {
         "child_process": "^1.0.2",
         "fs-extra": "^10.0.0",
         "os": "^0.1.1",
         "path": "^0.12.7"
-    },
-    "author": "Bruno Zell",
-    "license": "MIT"
+    }
 }

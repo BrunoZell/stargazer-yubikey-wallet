@@ -1,0 +1,12 @@
+{
+    "name": "yubikey-wallet",
+    "version": "1.0.0",
+    "private": true,
+    "workspaces": [
+        "wallet-host",
+        "wallet-host-installer"
+    ],
+    "scripts": {
+        "install-wallet": "npm --prefix wallet-host-installer run install-wallet"
+    }
+}
