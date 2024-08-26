@@ -89,25 +89,23 @@ async function handleMessage() {
         const message = await readMessage();
         log(`Processing message: ${JSON.stringify(message)}`);
         if (message.command === 'getPublicKey') {
-            sendMessage({ error: 'Not implemented' });
-            // exec('gpg --card-status', (error, stdout, stderr) => {
-            //     if (error) {
-            //         sendMessage({ error: error.message });
-            //     } else {
-            //         const publicKey = parsePublicKey(stdout);
-            //         sendMessage({ publicKey });
-            //     }
-            // });
+            exec('gpg --card-status', (error, stdout, stderr) => {
+                if (error) {
+                    sendMessage({ error: error.message });
+                } else {
+                    const publicKey = parsePublicKey(stdout);
+                    sendMessage({ publicKey });
+                }
+            });
         } else if (message.command === 'signMessage') {
-            sendMessage({ error: 'Not implemented' });
-            // const { hexString } = message;
-            // exec(`echo ${hexString} | gpg --sign --armor`, (error, stdout, stderr) => {
-            //     if (error) {
-            //         sendMessage({ error: error.message });
-            //     } else {
-            //         sendMessage({ signature: stdout });
-            //     }
-            // });
+            const { hexString } = message;
+            exec(`echo ${hexString} | gpg --sign --armor`, (error, stdout, stderr) => {
+                if (error) {
+                    sendMessage({ error: error.message });
+                } else {
+                    sendMessage({ signature: stdout });
+                }
+            });
         } else {
             sendMessage({ error: 'Unknown command' });
         }
