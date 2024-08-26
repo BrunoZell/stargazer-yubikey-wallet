@@ -1,11 +1,18 @@
 const { exec } = require('child_process');
 const readline = require('readline');
+const fs = require('fs');
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     terminal: false
 });
+
+const logFile = fs.createWriteStream('./yubikey-bridge-logfile.log', { flags: 'a' });
+
+function log(message) {
+    logFile.write(`${new Date().toISOString()} - ${message}\n`);
+}
 
 function readMessage() {
     return new Promise((resolve, reject) => {
@@ -29,13 +36,20 @@ function sendMessage(message) {
     const buffer = Buffer.alloc(4 + messageLength);
     buffer.writeUInt32LE(messageLength, 0);
     buffer.write(jsonMessage, 4);
-    process.stdout.write(buffer);
+    
+    try {
+        process.stdout.write(buffer);
+        log(`Sent message: ${jsonMessage}`);
+    } catch (error) {
+        log(`Failed to send message: ${error.message}`);
+    }
 }
 
 async function handleMessages() {
     while (true) {
         try {
             const message = await readMessage();
+            log(`Received message: ${JSON.stringify(message)}`);
             if (message.command === 'getPublicKey') {
                 sendMessage({ error: 'Not implemented' });
                 // exec('gpg --card-status', (error, stdout, stderr) => {
@@ -61,6 +75,7 @@ async function handleMessages() {
             }
         } catch (error) {
             sendMessage({ error: error.message });
+            log(`Error handling message: ${error.message}`);
         }
     }
 }
