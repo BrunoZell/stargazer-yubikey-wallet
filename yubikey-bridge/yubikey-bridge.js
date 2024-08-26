@@ -39,8 +39,13 @@ function readMessage() {
                 // Case: Message length is known but not all data has been received yet
                 // Accumulate chunks into messageBuffer
                 log(`Received message chunk: ${chunk.toString('hex')}`);
-                chunk.copy(messageBuffer, receivedLength); // Copy chunk into messageBuffer starting at receivedLength
-                receivedLength += chunk.length;
+                // This calculates how many more bytes are needed to complete the message.
+                // Math.min ensures that we only copy the smaller of the two values, either the remaining bytes needed to complete the message or the length of the current chunk.
+                const bytesToCopy = Math.min(messageLength - receivedLength, chunk.length);
+                chunk.copy(messageBuffer, receivedLength, 0, bytesToCopy);
+                receivedLength += bytesToCopy;
+                // The remaining bytes are the bytes that were not needed to complete the message and are
+                // just discarded as this implementation expects only one request message per execution.
             }
 
             // Check if the entire message has been received
@@ -82,7 +87,7 @@ function sendMessage(message) {
 async function handleMessage() {
     try {
         const message = await readMessage();
-        log(`Received message: ${JSON.stringify(message)}`);
+        log(`Processing message: ${JSON.stringify(message)}`);
         if (message.command === 'getPublicKey') {
             sendMessage({ error: 'Not implemented' });
             // exec('gpg --card-status', (error, stdout, stderr) => {
