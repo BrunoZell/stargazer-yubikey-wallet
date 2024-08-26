@@ -130,14 +130,14 @@ async function handleMessage() {
 }
 
 function parsePublicKey(gpgOutput) {
-    const publicKeyRegex = /key\s+([0-9A-F]+)\s+ED25519/;
+    const publicKeyRegex = /Signature key\s*\.*:\s+([0-9A-F\s]+)(?=\r?\n)/;
     const serialNumberRegex = /Serial number\s*\.*:\s+(\d+)/;
     const signatureKeyRegex = /Signature key\s*\.*:\s+\[none\]/;
 
     const publicKeyMatch = gpgOutput.match(publicKeyRegex);
     const serialNumberMatch = gpgOutput.match(serialNumberRegex);
 
-    const publicKey = publicKeyMatch ? publicKeyMatch[1] : null;
+    const publicKey = publicKeyMatch ? publicKeyMatch[1].replace(/\s+/g, '') : null;
     const serialNumber = serialNumberMatch ? serialNumberMatch[1] : null;
     const hasNoSignatureKey = signatureKeyRegex.test(gpgOutput);
 
