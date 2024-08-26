@@ -44,4 +44,4 @@ yarn install-wallet
 1. Go to `chrome://extensions` in the browser.
 2. Enable `Developer Mode`.
 3. Click on `Load Unpacked Extension…`.
-4. Select the extension’s extracted directory.
+4. Select the extension's extracted directory: `stargazer-wallet-ext\source\web\extension\chrome`
