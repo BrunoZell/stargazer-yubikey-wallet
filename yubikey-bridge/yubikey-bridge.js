@@ -18,6 +18,7 @@ function readMessage() {
 
         function onData(chunk) {
             if (messageBuffer === null) {
+                // Case: Message length is not yet known
                 // Accumulate the first 4 bytes to determine message length
                 log(`Received raw length chunk: ${chunk.toString('hex')}`);
                 chunk.copy(rawLength, receivedLength); // Copy chunk into rawLength starting at receivedLength
@@ -35,6 +36,7 @@ function readMessage() {
                     receivedLength = remainingChunk.length;
                 }
             } else {
+                // Case: Message length is known but not all data has been received yet
                 // Accumulate chunks into messageBuffer
                 log(`Received message chunk: ${chunk.toString('hex')}`);
                 chunk.copy(messageBuffer, receivedLength); // Copy chunk into messageBuffer starting at receivedLength
@@ -43,6 +45,7 @@ function readMessage() {
 
             // Check if the entire message has been received
             if (receivedLength >= messageLength) {
+                // Case: Message length is known and all data has been received
                 const message = messageBuffer.toString();
                 log(`Parsed message: ${message}`);
                 process.stdin.removeListener('data', onData);
