@@ -35,4 +35,7 @@ To install dependencies, run `yarn`
 
 1. Copy the Chrome Extension ID from the `chrome://extensions` page.
 2. Adjust `chromeExtensionId` in `wallet-host-installer/install.js` to the copied ID.
-3. Run `yarn install-wallet`
+3. Run `yarn install-wallet`. It will:
+    - Build the `wallet-host` executable
+    - Install the `wallet-host` executable in your user directory `~/YubikeyWallet`
+    - Register the `wallet-host` executable as a native messaging host with the Google Chrome browser

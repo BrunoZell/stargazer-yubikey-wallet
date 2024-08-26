@@ -16,13 +16,13 @@ const manifestJson = {
     ]
 };
 
-function runNpmCommands(callback) {
-    exec('npm install && npm run build', { cwd: path.resolve(__dirname, '../wallet-host') }, (error, stdout, stderr) => {
+function runBuildCommands(callback) {
+    exec('yarn install && yarn build', { cwd: path.resolve(__dirname, '../wallet-host') }, (error, stdout, stderr) => {
         if (error) {
-            console.error(`Error running npm commands: ${error.message}`);
+            console.error(`Error running yarn commands: ${error.message}`);
             return;
         }
-        console.log('npm install and build completed successfully');
+        console.log('yarn install and build completed successfully');
         callback();
     });
 }
@@ -77,7 +77,7 @@ function installOnMacLinux() {
 
 function install() {
     const platform = os.platform();
-    runNpmCommands(() => {
+    runBuildCommands(() => {
         if (platform === 'win32') {
             installOnWindows();
         } else if (platform === 'darwin' || platform === 'linux') {
