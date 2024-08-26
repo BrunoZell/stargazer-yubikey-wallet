@@ -1,4 +1,4 @@
-const { exec } = require('child_process');
+const { execSync } = require('child_process');
 const fs = require('fs');
 const util = require('util');
 
@@ -91,15 +91,16 @@ async function handleMessage() {
         if (message.command === 'getPublicKey') {
             log(`Processing getPublicKey message`);
             try {
-                const { stdout, stderr } = await exec('gpg --card-status');
-                log(`gpg output received`);
-                if (stderr) {
-                    log(`gpg stderr: ${stderr}`);
-                }
-                log(`gpg --card-status output: ${stdout}`);
+                const stdout = execSync('gpg --card-status', { encoding: 'utf8' });
+                log(`gpg output received:\n${stdout}`);
+                
                 const { publicKey, serialNumber, hasNoSignatureKey } = parsePublicKey(stdout);
-                if (hasNoSignatureKey) {
-                    sendMessage({ error: `No Signature Key on Yubikey [Serial number: ${serialNumber}]` });
+
+                if (hasNoSignatureKey || !publicKey) {
+                    sendMessage({
+                        error: `No Signature Key on Yubikey with serial number ${serialNumber}`,
+                        serial: serialNumber
+                    });
                 } else {
                     sendMessage({ publicKey });
                 }
@@ -111,11 +112,10 @@ async function handleMessage() {
             log(`Processing signMessage message`);
             const { hexString } = message;
             try {
-                const { stdout, stderr } = await exec(`echo ${hexString} | gpg --sign --armor`);
-                if (stderr) {
-                    log(`gpg stderr: ${stderr}`);
-                }
-                sendMessage({ signature: stdout });
+                const stdout = execSync(`echo ${hexString} | gpg --sign --armor`, { encoding: 'utf8' });
+                log(`gpg output received:\n${stdout}`);
+                
+                sendMessage({ signature: null });
             } catch (error) {
                 log(`gpg error: ${error.message}`);
                 sendMessage({ error: error.message });
@@ -136,12 +136,12 @@ function parsePublicKey(gpgOutput) {
 
     const publicKeyMatch = gpgOutput.match(publicKeyRegex);
     const serialNumberMatch = gpgOutput.match(serialNumberRegex);
-    const hasNoSignatureKey = signatureKeyRegex.test(gpgOutput);
 
     const publicKey = publicKeyMatch ? publicKeyMatch[1] : null;
-    const serialNumber = serialNumberMatch ? serialNumberMatch[1] : 'unknown';
+    const serialNumber = serialNumberMatch ? serialNumberMatch[1] : null;
+    const hasNoSignatureKey = signatureKeyRegex.test(gpgOutput);
 
-    log(`parsePublicKey - publicKey: ${publicKey}, serialNumber: ${serialNumber}, hasNoSignatureKey: ${hasNoSignatureKey}`);
+    log(`extracted: publicKey: ${publicKey}, serialNumber: ${serialNumber}, hasNoSignatureKey: ${hasNoSignatureKey}`);
     return { publicKey, serialNumber, hasNoSignatureKey };
 }
 
