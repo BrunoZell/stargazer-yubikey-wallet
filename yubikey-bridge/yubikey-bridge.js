@@ -98,7 +98,7 @@ async function handleMessage() {
 
                 if (hasNoSignatureKey || !publicKey) {
                     sendMessage({
-                        error: `No Signature Key on Yubikey with serial number ${serialNumber}`,
+                        error: `No signature key on Yubikey with serial number ${serialNumber}`,
                         serial: serialNumber
                     });
                 } else {
@@ -131,8 +131,8 @@ async function handleMessage() {
 
 function parsePublicKey(gpgOutput) {
     const publicKeyRegex = /key\s+([0-9A-F]+)\s+ED25519/;
-    const serialNumberRegex = /Serial number\s+:\s+(\d+)/;
-    const signatureKeyRegex = /Signature key\s+:\s+\[none\]/;
+    const serialNumberRegex = /Serial number\s*\.*:\s+(\d+)/;
+    const signatureKeyRegex = /Signature key\s*\.*:\s+\[none\]/;
 
     const publicKeyMatch = gpgOutput.match(publicKeyRegex);
     const serialNumberMatch = gpgOutput.match(serialNumberRegex);
@@ -141,7 +141,20 @@ function parsePublicKey(gpgOutput) {
     const serialNumber = serialNumberMatch ? serialNumberMatch[1] : null;
     const hasNoSignatureKey = signatureKeyRegex.test(gpgOutput);
 
-    log(`extracted: publicKey: ${publicKey}, serialNumber: ${serialNumber}, hasNoSignatureKey: ${hasNoSignatureKey}`);
+    if (serialNumber) {
+        log(`Serial number ${serialNumber} extracted from: "${serialNumberMatch[0]}"`);
+    } else {
+        log(`No serial number found`);
+    }
+
+    if (publicKey) {
+        log(`Public key ${publicKey} extracted from: "${publicKeyMatch[0]}"`);
+    } else {
+        log(`No public key found`);
+    }
+
+    log(`Has [none] signature key: ${hasNoSignatureKey}`);
+
     return { publicKey, serialNumber, hasNoSignatureKey };
 }
 
