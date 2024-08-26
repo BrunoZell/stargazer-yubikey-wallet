@@ -8,7 +8,8 @@
     "bin": "yubikey-bridge.js",
     "scripts": {
         "start": "node yubikey-bridge.js",
-        "build": "npx pkg . --out-path ../dist"
+        "package": "pkg . --out-path ../dist",
+        "build": "yarn package"
     },
     "dependencies": {
         "child_process": "^1.0.2"
