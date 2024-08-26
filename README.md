@@ -19,29 +19,20 @@ Ensure you have the following installed:
 - [Node.js](https://nodejs.org) 10 or later
 - [Yarn](https://yarnpkg.com) v1 or v2
 
-### Installation
+### Install Dependencies
 
-To install dependencies, run:
+To install dependencies, run `yarn`
 
-```bash
-yarn
-```
+### Install the Extension in Chrome
 
-To build the forked Stargazer Wallet extension, run:
+1. Build the extension: `yarn build-extension`
+2. Go to `chrome://extensions` in the browser.
+3. Enable `Developer Mode`.
+4. Click on `Load Unpacked Extension…`.
+5. Select the extension's extracted directory: `stargazer-wallet-ext\source\web\extension\chrome`
 
-```bash
-yarn build-extension
-```
+### Install Yubikey Wallet Bridge
 
-To build and install the Yubikey Wallet bridging host, run:
-
-```bash
-yarn install-wallet
-```
-
-### Loading the Extension in Browser
-
-1. Go to `chrome://extensions` in the browser.
-2. Enable `Developer Mode`.
-3. Click on `Load Unpacked Extension…`.
-4. Select the extension's extracted directory: `stargazer-wallet-ext\source\web\extension\chrome`
+1. Copy the Chrome Extension ID from the `chrome://extensions` page.
+2. Adjust `chromeExtensionId` in `wallet-host-installer/install.js` to the copied ID.
+3. Run `yarn install-wallet`

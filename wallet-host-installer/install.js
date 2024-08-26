@@ -3,13 +3,16 @@ const path = require('path');
 const os = require('os');
 const { exec } = require('child_process');
 
+// Replace with the actual extension ID
+const chromeExtensionId = 'kbgkiecofnbkjfhpjlpednihkobnnhjg';
+
 const manifestJson = {
     "name": "com.constellation.yubikey",
     "description": "Native Messaging Host for Yubikey Wallet",
     "path": "",  // This will be set dynamically based on the platform
     "type": "stdio",
     "allowed_origins": [
-        "chrome-extension://dacabonkdgpbkfdmpnnngmgdcadpglla/"
+        `chrome-extension://${chromeExtensionId}/`
     ]
 };
 
