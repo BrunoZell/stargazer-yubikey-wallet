@@ -94,7 +94,7 @@ async function handleMessage() {
                 const stdout = execSync('gpg --card-status', { encoding: 'utf8' });
                 log(`gpg output received:\n${stdout}`);
                 
-                const { publicKey, serialNumber, hasNoSignatureKey } = parsePublicKey(stdout);
+                const { publicKey, serialNumber, hasNoSignatureKey, keyAttributes } = parseGpgOutput(stdout);
 
                 if (hasNoSignatureKey || !publicKey) {
                     sendMessage({
@@ -102,7 +102,15 @@ async function handleMessage() {
                         serial: serialNumber
                     });
                 } else {
-                    sendMessage({ publicKey });
+                    sendMessage({
+                        publicKey,
+                        serial: serialNumber,
+                        keyAttributes: {
+                            sign: keyAttributes.sign,
+                            encrypt: keyAttributes.encrypt,
+                            authenticate: keyAttributes.authenticate
+                        }
+                    });
                 }
             } catch (error) {
                 log(`gpg error: ${error.message}`);
@@ -129,13 +137,15 @@ async function handleMessage() {
     }
 }
 
-function parsePublicKey(gpgOutput) {
+function parseGpgOutput(gpgOutput) {
     const publicKeyRegex = /Signature key\s*\.*:\s+([0-9A-F\s]+)(?=\r?\n)/;
     const serialNumberRegex = /Serial number\s*\.*:\s+(\d+)/;
     const signatureKeyRegex = /Signature key\s*\.*:\s+\[none\]/;
+    const keyAttributesRegex = /Key attributes\s*\.*:\s+([a-z0-9\s]+)(?=\r?\n)/i;
 
     const publicKeyMatch = gpgOutput.match(publicKeyRegex);
     const serialNumberMatch = gpgOutput.match(serialNumberRegex);
+    const keyAttributesMatch = gpgOutput.match(keyAttributesRegex);
 
     const publicKey = publicKeyMatch ? publicKeyMatch[1].replace(/\s+/g, '') : null;
     const serialNumber = serialNumberMatch ? serialNumberMatch[1] : null;
@@ -155,7 +165,24 @@ function parsePublicKey(gpgOutput) {
 
     log(`Has [none] signature key: ${hasNoSignatureKey}`);
 
-    return { publicKey, serialNumber, hasNoSignatureKey };
+    let keyAttributes = { sign: null, encrypt: null, authenticate: null };
+    if (keyAttributesMatch) {
+        const attributes = keyAttributesMatch[1].trim().split(/\s+/);
+        if (attributes.length === 3) {
+            keyAttributes = {
+                sign: attributes[0],
+                encrypt: attributes[1],
+                authenticate: attributes[2]
+            };
+            log(`Key attributes extracted: sign=${keyAttributes.sign}, encrypt=${keyAttributes.encrypt}, authenticate=${keyAttributes.authenticate}`);        
+        } else {
+            log(`Could not extract key attributes from: ${keyAttributesMatch[0]}`);
+        }
+    } else {
+        log(`No key attributes found`);
+    }
+
+    return { publicKey, serialNumber, hasNoSignatureKey, keyAttributes };
 }
 
 async function main() {
