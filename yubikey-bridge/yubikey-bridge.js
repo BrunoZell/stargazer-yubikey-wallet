@@ -11,31 +11,37 @@ function log(message) {
 
 function readMessage() {
     return new Promise((resolve, reject) => {
-        let rawLength = Buffer.alloc(4);
+        let rawLength = Buffer.alloc(4); // Buffer to store the length of the message
         let messageBuffer = null;
         let messageLength = 0;
         let receivedLength = 0;
 
         function onData(chunk) {
             if (messageBuffer === null) {
+                // Accumulate the first 4 bytes to determine message length
                 log(`Received raw length chunk: ${chunk.toString('hex')}`);
-                chunk.copy(rawLength, receivedLength);
+                chunk.copy(rawLength, receivedLength); // Copy chunk into rawLength starting at receivedLength
                 receivedLength += chunk.length;
 
                 if (receivedLength >= 4) {
+                    // Once 4 bytes are received, read the message length
                     messageLength = rawLength.readUInt32LE(0);
                     log(`Parsed message length: ${messageLength}`);
                     messageBuffer = Buffer.alloc(messageLength);
+                    
+                    // Handle remaining data in the chunk
                     const remainingChunk = chunk.slice(4);
-                    remainingChunk.copy(messageBuffer, 0);
+                    remainingChunk.copy(messageBuffer, 0); // Copy remaining chunk into messageBuffer
                     receivedLength = remainingChunk.length;
                 }
             } else {
+                // Accumulate chunks into messageBuffer
                 log(`Received message chunk: ${chunk.toString('hex')}`);
-                chunk.copy(messageBuffer, receivedLength);
+                chunk.copy(messageBuffer, receivedLength); // Copy chunk into messageBuffer starting at receivedLength
                 receivedLength += chunk.length;
             }
 
+            // Check if the entire message has been received
             if (receivedLength >= messageLength) {
                 const message = messageBuffer.toString();
                 log(`Parsed message: ${message}`);
