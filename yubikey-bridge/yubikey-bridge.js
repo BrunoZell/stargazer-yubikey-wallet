@@ -1,5 +1,6 @@
 const { exec } = require('child_process');
 const fs = require('fs');
+const util = require('util');
 
 const logFile = fs.createWriteStream('./yubikey-bridge-logfile.txt', { flags: 'a' });
 
@@ -87,25 +88,38 @@ function sendMessage(message) {
 async function handleMessage() {
     try {
         const message = await readMessage();
-        log(`Processing message: ${JSON.stringify(message)}`);
         if (message.command === 'getPublicKey') {
-            exec('gpg --card-status', (error, stdout, stderr) => {
-                if (error) {
-                    sendMessage({ error: error.message });
+            log(`Processing getPublicKey message`);
+            try {
+                const { stdout, stderr } = await exec('gpg --card-status');
+                log(`gpg output received`);
+                if (stderr) {
+                    log(`gpg stderr: ${stderr}`);
+                }
+                log(`gpg --card-status output: ${stdout}`);
+                const { publicKey, serialNumber, hasNoSignatureKey } = parsePublicKey(stdout);
+                if (hasNoSignatureKey) {
+                    sendMessage({ error: `No Signature Key on Yubikey [Serial number: ${serialNumber}]` });
                 } else {
-                    const publicKey = parsePublicKey(stdout);
                     sendMessage({ publicKey });
                 }
-            });
+            } catch (error) {
+                log(`gpg error: ${error.message}`);
+                sendMessage({ error: error.message });
+            }
         } else if (message.command === 'signMessage') {
+            log(`Processing signMessage message`);
             const { hexString } = message;
-            exec(`echo ${hexString} | gpg --sign --armor`, (error, stdout, stderr) => {
-                if (error) {
-                    sendMessage({ error: error.message });
-                } else {
-                    sendMessage({ signature: stdout });
+            try {
+                const { stdout, stderr } = await exec(`echo ${hexString} | gpg --sign --armor`);
+                if (stderr) {
+                    log(`gpg stderr: ${stderr}`);
                 }
-            });
+                sendMessage({ signature: stdout });
+            } catch (error) {
+                log(`gpg error: ${error.message}`);
+                sendMessage({ error: error.message });
+            }
         } else {
             sendMessage({ error: 'Unknown command' });
         }
@@ -117,8 +131,25 @@ async function handleMessage() {
 
 function parsePublicKey(gpgOutput) {
     const publicKeyRegex = /key\s+([0-9A-F]+)\s+ED25519/;
-    const match = gpgOutput.match(publicKeyRegex);
-    return match ? match[1] : null;
+    const serialNumberRegex = /Serial number\s+:\s+(\d+)/;
+    const signatureKeyRegex = /Signature key\s+:\s+\[none\]/;
+
+    const publicKeyMatch = gpgOutput.match(publicKeyRegex);
+    const serialNumberMatch = gpgOutput.match(serialNumberRegex);
+    const hasNoSignatureKey = signatureKeyRegex.test(gpgOutput);
+
+    const publicKey = publicKeyMatch ? publicKeyMatch[1] : null;
+    const serialNumber = serialNumberMatch ? serialNumberMatch[1] : 'unknown';
+
+    log(`parsePublicKey - publicKey: ${publicKey}, serialNumber: ${serialNumber}, hasNoSignatureKey: ${hasNoSignatureKey}`);
+    return { publicKey, serialNumber, hasNoSignatureKey };
 }
 
-handleMessage();
+async function main() {
+    await handleMessage();
+}
+
+main().catch(error => {
+    log(`Unhandled error: ${error.message}`);
+    process.exit(1);
+});
