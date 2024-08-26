@@ -25,7 +25,7 @@ To install dependencies, run `yarn`
 
 ### Install the Extension in Chrome
 
-1. Build the extension: `yarn build-extension`
+1. Build the extension: `yarn chrome-extension:build`
 2. Go to `chrome://extensions` in the browser.
 3. Enable `Developer Mode`.
 4. Click on `Load Unpacked Extension…`.
