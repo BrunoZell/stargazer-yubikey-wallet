@@ -6,8 +6,8 @@ Yubikey Wallet is a cross-chain compatible extension to the Stargazer Wallet tha
 
 The project is organized into several workspaces:
 
-- `wallet-host`: Native messaging host to grant Stargazer Wallet access to a Yubikey. It runs on the host machine and is called by the browser from within the Stargazer Wallet extension. It calls `gpg` to extract the public key stored on the YubiKey and to sign messages with the private key stored on the YubiKey.
-- `wallet-host-installer`: Installer for the Yubikey Wallet Native Messaging Host. It builds the `wallet-host` executable and installs it on the host machine. It also registers it as a native messaging host with the Google Chrome browser.
+- `yubikey-bridge`: Native messaging host to grant Stargazer Wallet access to a Yubikey. It runs on the host machine and is called by the browser from within the Stargazer Wallet extension. It calls `gpg` to extract the public key stored on the YubiKey and to sign messages with the private key stored on the YubiKey.
+- `yubikey-bridge-installer`: Installer for the Yubikey Wallet Native Messaging Host. It builds the `yubikey-bridge` executable and installs it on the host machine. It also registers it as a native messaging host with the Google Chrome browser.
 - `stargazer-wallet-ext`: A fork of the Stargazer Wallet browser extension that integrates the Yubikey Wallet as a hardware wallet.
 
 ## Getting Started
@@ -34,8 +34,8 @@ To install dependencies, run `yarn`
 ### Install Yubikey Wallet Bridge
 
 1. Copy the Chrome Extension ID from the `chrome://extensions` page.
-2. Adjust `chromeExtensionId` in `wallet-host-installer/install.js` to the copied ID.
-3. Run `yarn install-wallet`. It will:
-    - Build the `wallet-host` executable
-    - Install the `wallet-host` executable in your user directory `~/YubikeyWallet`
-    - Register the `wallet-host` executable as a native messaging host with the Google Chrome browser
+2. Adjust `chromeExtensionId` in `yubikey-bridge-installer/install.js` to the copied ID.
+3. Run `yarn yubikey-bridge:build` to build the native messaging host executable called by the Browser Extension.
+4. Run `yarn yubikey-bridge:install`. It will:
+    - Install the `yubikey-bridge` executable in your user directory `~/YubikeyWallet`
+    - Register the `yubikey-bridge` executable as a native messaging host with the Google Chrome browser

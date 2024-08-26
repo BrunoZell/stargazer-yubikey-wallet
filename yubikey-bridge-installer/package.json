@@ -1,5 +1,5 @@
 {
-    "name": "yubikey-wallet-installer",
+    "name": "yubikey-bridge-installer",
     "version": "1.0.0",
     "description": "Installer for Yubikey Wallet Native Messaging Host",
     "author": "Bruno Zell",

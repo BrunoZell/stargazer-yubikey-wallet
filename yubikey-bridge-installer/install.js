@@ -16,24 +16,13 @@ const manifestJson = {
     ]
 };
 
-function runBuildCommands(callback) {
-    exec('yarn install && yarn build', { cwd: path.resolve(__dirname, '../wallet-host') }, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error running yarn commands: ${error.message}`);
-            return;
-        }
-        console.log('yarn install and build completed successfully');
-        callback();
-    });
-}
-
 function installOnWindows() {
     const registryPath = 'HKCU\\SOFTWARE\\Google\\Chrome\\NativeMessagingHosts\\com.constellation.yubikey';
-    const executablePath = path.join(__dirname, '../dist', 'yubikey-wallet-win.exe');
+    const executablePath = path.join(__dirname, '../dist', 'yubikey-bridge-win.exe');
     const userHomeDir = os.homedir();
     const appDir = path.join(userHomeDir, 'YubikeyWallet');
     const manifestJsonPath = path.join(appDir, 'native-messaging-host.json');
-    manifestJson.path = path.join(appDir, 'yubikey-wallet.exe');
+    manifestJson.path = path.join(appDir, 'yubikey-bridge.exe');
 
     // Ensure the directory exists
     fs.mkdirSync(appDir, { recursive: true });
@@ -58,9 +47,9 @@ function installOnWindows() {
 function installOnMacLinux() {
     const platform = os.platform();
     const manifestJsonPath = path.join(os.homedir(), '.config', 'google-chrome', 'NativeMessagingHosts', 'com.constellation.yubikey.json');
-    const executablePath = path.join(__dirname, '../dist', `yubikey-wallet${platform === 'darwin' ? '-macos' : '-linux'}`);
+    const executablePath = path.join(__dirname, '../dist', `yubikey-bridge${platform === 'darwin' ? '-macos' : '-linux'}`);
 
-    manifestJson.path = '/usr/local/bin/yubikey-wallet';
+    manifestJson.path = '/usr/local/bin/yubikey-bridge';
     const jsonString = JSON.stringify(manifestJson, null, 2);
 
     // Ensure the directory exists
@@ -77,15 +66,13 @@ function installOnMacLinux() {
 
 function install() {
     const platform = os.platform();
-    runBuildCommands(() => {
-        if (platform === 'win32') {
-            installOnWindows();
-        } else if (platform === 'darwin' || platform === 'linux') {
-            installOnMacLinux();
-        } else {
-            console.error('Unsupported platform');
-        }
-    });
+    if (platform === 'win32') {
+        installOnWindows();
+    } else if (platform === 'darwin' || platform === 'linux') {
+        installOnMacLinux();
+    } else {
+        console.error('Unsupported platform');
+    }
 }
 
 install();

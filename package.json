@@ -3,15 +3,19 @@
     "version": "1.0.0",
     "private": true,
     "workspaces": [
-        "wallet-host",
-        "wallet-host-installer",
+        "yubikey-bridge",
+        "yubikey-bridge-installer",
         "stargazer-wallet-ext",
         "stargazer-wallet-ext/source/web",
         "stargazer-wallet-ext/source/native"
     ],
     "scripts": {
-        "install-wallet": "yarn workspace yubikey-wallet-installer install-wallet",
-        "build-extension": "yarn workspace stargazer-wallet-ext build:chrome"
+        "chrome-extension:build": "yarn workspace stargazer-wallet-ext build:chrome",
+        "yubikey-bridge:build": "yarn workspace yubikey-bridge build",
+        "yubikey-bridge:install": "yarn workspace yubikey-bridge-installer install-wallet"
+    },
+    "devDependencies": {
+        "pkg": "^5.3.1"
     },
     "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
