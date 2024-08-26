@@ -26,19 +26,21 @@ function readMessage() {
                     messageLength = rawLength.readUInt32LE(0);
                     log(`Parsed message length: ${messageLength}`);
                     messageBuffer = Buffer.alloc(messageLength);
-                    receivedLength = 0;
+                    const remainingChunk = chunk.slice(4);
+                    remainingChunk.copy(messageBuffer, 0);
+                    receivedLength = remainingChunk.length;
                 }
             } else {
                 log(`Received message chunk: ${chunk.toString('hex')}`);
                 chunk.copy(messageBuffer, receivedLength);
                 receivedLength += chunk.length;
+            }
 
-                if (receivedLength >= messageLength) {
-                    const message = messageBuffer.toString();
-                    log(`Parsed message: ${message}`);
-                    process.stdin.removeListener('data', onData);
-                    resolve(JSON.parse(message));
-                }
+            if (receivedLength >= messageLength) {
+                const message = messageBuffer.toString();
+                log(`Parsed message: ${message}`);
+                process.stdin.removeListener('data', onData);
+                resolve(JSON.parse(message));
             }
         }
 
