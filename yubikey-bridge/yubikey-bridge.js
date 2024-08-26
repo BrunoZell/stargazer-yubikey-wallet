@@ -8,10 +8,12 @@ const rl = readline.createInterface({
     terminal: false
 });
 
-const logFile = fs.createWriteStream('./yubikey-bridge-logfile.log', { flags: 'a' });
+const logFile = fs.createWriteStream('./yubikey-bridge-logfile.txt', { flags: 'a' });
 
 function log(message) {
-    logFile.write(`${new Date().toISOString()} - ${message}\n`);
+    logFile.write(`${new Date().toISOString()} - ${message}\n`, () => {
+        logFile.end();
+    });
 }
 
 function readMessage() {
