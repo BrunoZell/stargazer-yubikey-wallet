@@ -124,15 +124,7 @@ async function handleMessage() {
 
                 log(`gpg key packets:\n${publicKeyPackets}`);
 
-                // Regular expression to match the public key packet and extract pkey[1]
-                const publicKeyPacketRegex = /:public key packet:\r?\n\s+version \d+, algo \d+, created \d+, expires \d+\r?\n\s+pkey\[0\]: [0-9A-F]+ .+\r?\n\s+pkey\[1\]: ([0-9A-F]+)\r?\n\s+keyid: [0-9A-F]+/;
-                const publicKeyMatch = publicKeyPackets.match(publicKeyPacketRegex);
-                const publicKeyHex = publicKeyMatch ? publicKeyMatch[1] : null;
-
-                log(`gpg public key packet match: ${JSON.stringify(publicKeyMatch)}`)
-                log(`gpg public key packet: ${publicKeyMatch[0]}`);
-                const publicKeyBuffer = Buffer.from(publicKeyHex, "hex")
-                log(`gpg key length: ${publicKeyBuffer.length}`);
+                const publicKeyHex = parsePublicKeyPacket(publicKeyPackets);
 
                 sendMessage({
                     fingerprint: fingerprint,
@@ -211,6 +203,20 @@ function parseGpgStatusOutput(gpgOutput) {
     }
 
     return { fingerprint: signatureKeyFingerprint, serialNumber, hasNoSignatureKey, keyAttributes };
+}
+
+function parsePublicKeyPacket(gpgOutput) {
+    // Regular expression to match the public key packet and extract pkey[1]
+    const publicKeyPacketRegex = /:public key packet:\r?\n\s+version \d+, algo \d+, created \d+, expires \d+\r?\n\s+pkey\[0\]: [0-9A-F]+ .+\r?\n\s+pkey\[1\]: ([0-9A-F]+)\r?\n\s+keyid: [0-9A-F]+/;
+    const match = gpgOutput.match(publicKeyPacketRegex);
+
+    if (match) {
+        const publicKeyHex = match[1];
+        log(`Public key ${publicKeyHex} extrated from packet match:\n${match[0]}`);
+        return publicKeyHex;
+    } else {
+        throw new Error("Public key packet not found.");
+    }
 }
 
 async function main() {
