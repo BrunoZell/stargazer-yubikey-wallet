@@ -76,7 +76,11 @@ Authentication key: [none]
 General key info..: [none]
 ```
 
-To initialize the Yubikey as a Constellation Network wallet, you need to generate a new key pair. Constellation uses `secp256k1` keys, so remeber the `--expert` flag to see them. Lets generate a new key pair:
+To initialize the Yubikey as a Constellation Network wallet, you need to generate a new key pair.
+
+⚠️ While its possible to generate keypairs directly on the Yubikey without it ever leaving the device, this is not supported for `secp256k1` type keys which Constellation uses for message and transaction signing. And even if, there would be no option to back up the key, so it would be lost if the pin is entered incorrectly three consecutive times or when the Yubikey is lost.
+
+So lets generate the keypair on the host machine and then copy it onto the Yubikey. It's generally a good idea to do this on an air-gapped machine, although a passphrase will protect the key on the host machine. Remeber the `--expert` flag to see keys of type `secp256k1`:
 
 ```bash
 > gpg --expert --full-generate-key
@@ -127,4 +131,50 @@ You selected this USER-ID:
     "Bruno (Constellation Wallet) <ask@bruno.wtf>"
 
 Change (N)ame, (C)omment, (E)mail or (O)kay/(Q)uit?
+```
+
+Type `o` to confirm and enter a passphrase that will protect the key material at rest on the host machine. They key will be generated and store it in your GPG key ring. It'll also print the fingerprint, which you'll need in the next steps:
+
+```text
+pub   secp256k1 2024-08-26 [SC]
+      F977C90DA4077068CAAD8B299502515330CB5D0F
+uid                      Bruno (Constellation Wallet) <ask@bruno.wtf>
+sub   secp256k1 2024-08-26 [E]
+```
+
+Now there is an opportunity to back up the private key so it can be recovered in case the Yubikey is lost or reset. For that, run `gpg --armor --export-secret-keys F977C90DA4077068CAAD8B299502515330CB5D0F > private-key.asc`. If you don't do that, the private key will be fully removed from the host machine in the next step.
+
+To copy the key to the Yubikey, run `gpg --edit-key F977C90DA4077068CAAD8B299502515330CB5D0F` with your keys fingerprint. Within `gpg`, type `keytocard`, copy it as Authentication key (`1`), and then `save`:
+
+```text
+> gpg --edit-key F977C90DA4077068CAAD8B299502515330CB5D0F
+gpg (GnuPG) 2.4.5; Copyright (C) 2024 g10 Code GmbH
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Secret key is available.
+
+sec  secp256k1/9502515330CB5D0F
+     created: 2024-08-26  expires: never       usage: SC
+     trust: ultimate      validity: ultimate
+ssb  secp256k1/4B140C97C6AD3322
+     created: 2024-08-26  expires: never       usage: E
+[ultimate] (1). Bruno (Constellation Wallet) <ask@bruno.wtf>
+
+gpg> keytocard
+Really move the primary key? (y/N) y
+Please select where to store the key:
+   (1) Signature key
+   (3) Authentication key
+Your selection? 1
+
+sec  secp256k1/9502515330CB5D0F
+     created: 2024-08-26  expires: never       usage: SC
+     trust: ultimate      validity: ultimate
+ssb  secp256k1/4B140C97C6AD3322
+     created: 2024-08-26  expires: never       usage: E
+[ultimate] (1). Bruno (Constellation Wallet) <ask@bruno.wtf>
+
+Note: the local copy of the secret key will only be deleted with "save".
+gpg> save
 ```
