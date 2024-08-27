@@ -142,6 +142,8 @@ uid                      Bruno (Constellation Wallet) <ask@bruno.wtf>
 sub   secp256k1 2024-08-26 [E]
 ```
 
+ℹ️ The fingerprint `F977C90DA4077068CAAD8B299502515330CB5D0F` uniquely identifies your GPG key. It is derived from the public key but is not the public key itself (it's the SHA-1 hash of the public key). To extract the raw public key from the GPG card, you can use `gpg --export [--armor] [fingerprint]`. You don't need to do that manually as the Yubikey Wallet Bridge will take care of that.
+
 Now there is an opportunity to back up the private key so it can be recovered in case the Yubikey is lost or reset. For that, run `gpg --armor --export-secret-keys F977C90DA4077068CAAD8B299502515330CB5D0F > private-key.asc`. If you don't do that, the private key will be fully removed from the host machine in the next step.
 
 To copy the key to the Yubikey, run `gpg --edit-key F977C90DA4077068CAAD8B299502515330CB5D0F` with your keys fingerprint. Within `gpg`, type `keytocard`, copy it as Authentication key (`1`), and then `save`:
