@@ -94,16 +94,16 @@ async function handleMessage() {
                 const stdout = execSync('gpg --card-status', { encoding: 'utf8' });
                 log(`gpg output received:\n${stdout}`);
                 
-                const { publicKey, serialNumber, hasNoSignatureKey, keyAttributes } = parseGpgOutput(stdout);
+                const { fingerprint, serialNumber, hasNoSignatureKey, keyAttributes } = parseGpgStatusOutput(stdout);
 
-                if (hasNoSignatureKey || !publicKey) {
+                if (hasNoSignatureKey || !fingerprint) {
                     sendMessage({
                         error: `No signature key on Yubikey with serial number ${serialNumber}`,
                         serial: serialNumber
                     });
                 } else {
                     sendMessage({
-                        publicKey,
+                        fingerprint: fingerprint,
                         serial: serialNumber,
                         keyAttributes: {
                             sign: keyAttributes.sign,
@@ -137,19 +137,19 @@ async function handleMessage() {
     }
 }
 
-function parseGpgOutput(gpgOutput) {
-    const publicKeyRegex = /Signature key\s*\.*:\s+([0-9A-F\s]+)(?=\r?\n)/;
+function parseGpgStatusOutput(gpgOutput) {
+    const signatureKeyFingerprintRegex = /Signature key\s*\.*:\s+([0-9A-F\s]+)(?=\r?\n)/;
+    const signatureKeyNoneRegex = /Signature key\s*\.*:\s+\[none\]/;
     const serialNumberRegex = /Serial number\s*\.*:\s+(\d+)/;
-    const signatureKeyRegex = /Signature key\s*\.*:\s+\[none\]/;
     const keyAttributesRegex = /Key attributes\s*\.*:\s+([a-z0-9\s]+)(?=\r?\n)/i;
 
-    const publicKeyMatch = gpgOutput.match(publicKeyRegex);
+    const signatureKeyFingerprintMatch = gpgOutput.match(signatureKeyFingerprintRegex);
     const serialNumberMatch = gpgOutput.match(serialNumberRegex);
     const keyAttributesMatch = gpgOutput.match(keyAttributesRegex);
 
-    const publicKey = publicKeyMatch ? publicKeyMatch[1].replace(/\s+/g, '') : null;
+    const signatureKeyFingerprint = signatureKeyFingerprintMatch ? signatureKeyFingerprintMatch[1].replace(/\s+/g, '') : null;
     const serialNumber = serialNumberMatch ? serialNumberMatch[1] : null;
-    const hasNoSignatureKey = signatureKeyRegex.test(gpgOutput);
+    const hasNoSignatureKey = signatureKeyNoneRegex.test(gpgOutput);
 
     if (serialNumber) {
         log(`Serial number ${serialNumber} extracted from: "${serialNumberMatch[0]}"`);
@@ -157,8 +157,8 @@ function parseGpgOutput(gpgOutput) {
         log(`No serial number found`);
     }
 
-    if (publicKey) {
-        log(`Public key ${publicKey} extracted from: "${publicKeyMatch[0]}"`);
+    if (signatureKeyFingerprint) {
+        log(`Public key ${signatureKeyFingerprint} extracted from: "${signatureKeyFingerprintMatch[0]}"`);
     } else {
         log(`No public key found`);
     }
@@ -182,7 +182,7 @@ function parseGpgOutput(gpgOutput) {
         log(`No key attributes found`);
     }
 
-    return { publicKey, serialNumber, hasNoSignatureKey, keyAttributes };
+    return { fingerprint: signatureKeyFingerprint, serialNumber, hasNoSignatureKey, keyAttributes };
 }
 
 async function main() {
