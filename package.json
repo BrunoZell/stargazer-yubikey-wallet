@@ -4,10 +4,7 @@
     "private": true,
     "workspaces": [
         "yubikey-bridge",
-        "yubikey-bridge-installer",
-        "stargazer-wallet-ext",
-        "stargazer-wallet-ext/source/web",
-        "stargazer-wallet-ext/source/native"
+        "yubikey-bridge-installer"
     ],
     "scripts": {
         "chrome-extension:build": "yarn workspace stargazer-wallet-ext build:chrome",
