@@ -30,7 +30,7 @@ function readMessage() {
                     messageLength = rawLength.readUInt32LE(0);
                     log(`Parsed message length: ${messageLength}`);
                     messageBuffer = Buffer.alloc(messageLength);
-                    
+
                     // Handle remaining data in the chunk
                     const remainingChunk = chunk.slice(4);
                     remainingChunk.copy(messageBuffer, 0); // Copy remaining chunk into messageBuffer
@@ -75,7 +75,7 @@ function sendMessage(message) {
     const buffer = Buffer.alloc(4 + messageLength);
     buffer.writeUInt32LE(messageLength, 0);
     buffer.write(jsonMessage, 4);
-    
+
     log(`Sending message: ${jsonMessage}`);
     try {
         process.stdout.write(buffer);
@@ -91,27 +91,37 @@ async function handleMessage() {
         if (message.command === 'getPublicKey') {
             log(`Processing getPublicKey message`);
             try {
-                const stdout = execSync('gpg --card-status', { encoding: 'utf8' });
-                log(`gpg output received:\n${stdout}`);
-                
-                const { fingerprint, serialNumber, hasNoSignatureKey, keyAttributes } = parseGpgStatusOutput(stdout);
+                const statusStdout = execSync('gpg --card-status', { encoding: 'utf8' });
+                log(`gpg output received:\n${statusStdout}`);
+
+                const { fingerprint, serialNumber, hasNoSignatureKey, keyAttributes } = parseGpgStatusOutput(statusStdout);
 
                 if (hasNoSignatureKey || !fingerprint) {
                     sendMessage({
-                        error: `No signature key on Yubikey with serial number ${serialNumber}`,
+                        error: `No signature key on Yubikey with serial number ${serialNumber}.`,
                         serial: serialNumber
                     });
-                } else {
-                    sendMessage({
-                        fingerprint: fingerprint,
-                        serial: serialNumber,
-                        keyAttributes: {
-                            sign: keyAttributes.sign,
-                            encrypt: keyAttributes.encrypt,
-                            authenticate: keyAttributes.authenticate
-                        }
-                    });
+                    return;
                 }
+                
+                if (keyAttributes.sign.toLowerCase() !== "secp256k1") {
+                    sendMessage({
+                        error: `Siganture key is not of type secp256k1 on Yubikey with serial number ${serialNumber}.`,
+                        serial: serialNumber,
+                        type: keyAttributes.sign
+                    });
+                    return;
+                }
+
+                const publicKey = execSync('gpg --export --armor ' + fingerprint, { encoding: 'utf8' });
+                log(`gpg key export result:\n${publicKey}`);
+
+                sendMessage({
+                    fingerprint: fingerprint,
+                    publicKey: publicKey,
+                    serial: serialNumber,
+                    type: keyAttributes.sign
+                });
             } catch (error) {
                 log(`gpg error: ${error.message}`);
                 sendMessage({ error: error.message });
@@ -122,7 +132,7 @@ async function handleMessage() {
             try {
                 const stdout = execSync(`echo ${hexString} | gpg --sign --armor`, { encoding: 'utf8' });
                 log(`gpg output received:\n${stdout}`);
-                
+
                 sendMessage({ signature: null });
             } catch (error) {
                 log(`gpg error: ${error.message}`);
@@ -174,7 +184,7 @@ function parseGpgStatusOutput(gpgOutput) {
                 encrypt: attributes[1],
                 authenticate: attributes[2]
             };
-            log(`Key attributes extracted: sign=${keyAttributes.sign}, encrypt=${keyAttributes.encrypt}, authenticate=${keyAttributes.authenticate}`);        
+            log(`Key attributes extracted: sign=${keyAttributes.sign}, encrypt=${keyAttributes.encrypt}, authenticate=${keyAttributes.authenticate}`);
         } else {
             log(`Could not extract key attributes from: ${keyAttributesMatch[0]}`);
         }
