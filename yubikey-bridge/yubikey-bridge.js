@@ -125,12 +125,12 @@ async function handleMessage() {
                 log(`gpg key packets:\n${publicKeyPackets}`);
 
                 // Regular expression to match the public key packet and extract pkey[1]
-                const publicKeyPacketRegex = /:public key packet:\n\s+version \d+, algo \d+, created \d+, expires \d+\n\s+pkey\[0\]: .+\n\s+pkey\[1\]: ([0-9A-F]+)\n\s+keyid: [0-9A-F]+/;
+                const publicKeyPacketRegex = /:public key packet:\r?\n\s+version \d+, algo \d+, created \d+, expires \d+\r?\n\s+pkey\[0\]: [0-9A-F]+ .+\r?\n\s+pkey\[1\]: ([0-9A-F]+)\r?\n\s+keyid: [0-9A-F]+/;
                 const publicKeyMatch = publicKeyPackets.match(publicKeyPacketRegex);
                 const publicKeyHex = publicKeyMatch ? publicKeyMatch[1] : null;
 
-                log(`gpg public key packet match:\n${JSON.stringify(publicKeyMatch)}`)
-                log(`gpg public key packet:\n${publicKeyMatch[0]}`);
+                log(`gpg public key packet match: ${JSON.stringify(publicKeyMatch)}`)
+                log(`gpg public key packet: ${publicKeyMatch[0]}`);
                 const publicKeyBuffer = Buffer.from(publicKeyHex, "hex")
                 log(`gpg key length: ${publicKeyBuffer.length}`);
 
