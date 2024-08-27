@@ -1,6 +1,5 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
-const util = require('util');
 
 const logFile = fs.createWriteStream('./yubikey-bridge-logfile.txt', { flags: 'a' });
 
@@ -103,7 +102,7 @@ async function handleMessage() {
                     });
                     return;
                 }
-                
+
                 if (keyAttributes.sign.toLowerCase() !== "secp256k1") {
                     sendMessage({
                         error: `Siganture key is not of type secp256k1 on Yubikey with serial number ${serialNumber}.`,
@@ -113,12 +112,31 @@ async function handleMessage() {
                     return;
                 }
 
-                const publicKey = execSync('gpg --export --armor ' + fingerprint, { encoding: 'utf8' });
-                log(`gpg key export result:\n${publicKey}`);
+                // Run the gpg --export --armor command to get the public key in ASCII-armored format
+                const publicKeyArmor = execSync('gpg --export --armor ' + fingerprint, { encoding: 'utf8' });
+
+                log(`gpg key export:\n${publicKeyArmor}`);
+
+                const publicKeyPackets = execSync('gpg --list-packets --verbose', {
+                    input: publicKeyArmor,
+                    encoding: 'utf8'
+                });
+
+                log(`gpg key packets:\n${publicKeyPackets}`);
+
+                // Regular expression to match the public key packet and extract pkey[1]
+                const publicKeyPacketRegex = /:public key packet:\n\s+version \d+, algo \d+, created \d+, expires \d+\n\s+pkey\[0\]: .+\n\s+pkey\[1\]: ([0-9A-F]+)\n\s+keyid: [0-9A-F]+/;
+                const publicKeyMatch = publicKeyPackets.match(publicKeyPacketRegex);
+                const publicKeyHex = publicKeyMatch ? publicKeyMatch[1] : null;
+
+                log(`gpg public key packet match:\n${JSON.stringify(publicKeyMatch)}`)
+                log(`gpg public key packet:\n${publicKeyMatch[0]}`);
+                const publicKeyBuffer = Buffer.from(publicKeyHex, "hex")
+                log(`gpg key length: ${publicKeyBuffer.length}`);
 
                 sendMessage({
                     fingerprint: fingerprint,
-                    publicKey: publicKey,
+                    publicKey: publicKeyHex,
                     serial: serialNumber,
                     type: keyAttributes.sign
                 });
@@ -168,9 +186,9 @@ function parseGpgStatusOutput(gpgOutput) {
     }
 
     if (signatureKeyFingerprint) {
-        log(`Public key ${signatureKeyFingerprint} extracted from: "${signatureKeyFingerprintMatch[0]}"`);
+        log(`Key fingerprint ${signatureKeyFingerprint} extracted from: "${signatureKeyFingerprintMatch[0]}"`);
     } else {
-        log(`No public key found`);
+        log(`No signature key fingerprint found`);
     }
 
     log(`Has [none] signature key: ${hasNoSignatureKey}`);
