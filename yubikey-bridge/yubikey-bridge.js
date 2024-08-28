@@ -136,8 +136,8 @@ async function handleMessage() {
                 log(`gpg error: ${error.message}`);
                 sendMessage({ error: error.message });
             }
-        } else if (message.command === 'signMessage') {
-            log(`Processing signMessage message`);
+        } else if (message.command === 'signHash') {
+            log(`Processing signHash message`);
             const { hexString } = message;
             try {
                 const stdout = execSync(`echo ${hexString} | gpg --sign --armor`, { encoding: 'utf8' });
