@@ -53,7 +53,7 @@ When you buy a new Yubikey, plug it into your computer and run `gpg --card-statu
 ```bash
 > gpg --card-status
 Reader ...........: Yubico YubiKey OTP FIDO CCID 0
-Application ID ...: D2760001240100000006295237080000
+Application ID ...: D2760001240100000006312547600000
 Application type .: OpenPGP
 Version ..........: 3.4
 Manufacturer .....: Yubico
@@ -180,3 +180,68 @@ ssb  secp256k1/4B140C97C6AD3322
 Note: the local copy of the secret key will only be deleted with "save".
 gpg> save
 ```
+
+Now the card status looks like this:
+
+```txt
+C:\Repos> gpg --card-status
+Reader ...........: Yubico YubiKey OTP FIDO CCID 0
+Application ID ...: D2760001240100000006312547600000
+Application type .: OpenPGP
+Version ..........: 3.4
+Manufacturer .....: Yubico
+Serial number ....: 31254760
+Name of cardholder: [not set]
+Language prefs ...: [not set]
+Salutation .......:
+URL of public key : [not set]
+Login data .......: [not set]
+Signature PIN ....: not forced
+Key attributes ...: secp256k1 rsa2048 rsa2048
+Max. PIN lengths .: 127 127 127
+PIN retry counter : 3 0 3
+Signature counter : 0
+KDF setting ......: off
+UIF setting ......: Sign=off Decrypt=off Auth=off
+Signature key ....: F977 C90D A407 7068 CAAD  8B29 9502 5153 30CB 5D0F
+      created ....: 2024-08-26 17:45:16
+Encryption key....: [none]
+Authentication key: [none]
+General key info..: pub  secp256k1/9502515330CB5D0F 2024-08-26 Bruno (Constellation Wallet) <ask@bruno.wtf>
+sec>  secp256k1/9502515330CB5D0F  created: 2024-08-26  expires: never
+                                  card-no: 0006 31254760
+ssb   secp256k1/4B140C97C6AD3322  created: 2024-08-26  expires: never
+```
+
+By default, a Yubikey signature only requires entering the PIN code on every signature request. The default user pin is 123456, which should be personalized using ``.
+
+To further improve security, configure your Yubikeys touch policy to require a touch for signatures. This is turned **off** by default (see `UIF setting: Sign=off`) but can be changed using `ykman`:
+
+```bash
+> ykman openpgp info
+OpenPGP version:            3.4
+Application version:        5.7.1
+PIN tries remaining:        3
+Reset code tries remaining: 0
+Admin PIN tries remaining:  3
+Require PIN for signature:  Once
+KDF enabled:                False
+Touch policies:
+  Signature key:      Off
+  Encryption key:     Off
+  Authentication key: Off
+  Attestation key:    Off
+```
+
+To change the signature touch policy, run:
+
+```bash
+> ykman openpgp keys set-touch SIG On
+Enter Admin PIN: ********
+Set touch policy of SIG key to on? [y/N]: y
+Touch policy for slot SIG set.
+```
+
+Now after entering the pin somebody needs to physically touch the Yubikey for the signature to be generated. This protects the key from a leaked PIN code. For more details, see `ykman openpgp keys set-touch -h`.
+
+ℹ️ The Yubikey touch policy can also be changed using the Yubikey Manager GUI.
