@@ -12,7 +12,7 @@ The project is organized into several workspaces:
 
 ## Getting Started
 
-### Prerequisites
+### Build Prerequisites
 
 Ensure you have the following installed:
 
@@ -215,7 +215,7 @@ ssb   secp256k1/4B140C97C6AD3322  created: 2024-08-26  expires: never
 
 By default, a Yubikey signature only requires entering the PIN code on every signature request. The default user pin is 123456, which should be personalized using ``.
 
-To further improve security, configure your Yubikeys touch policy to require a touch for signatures. This is turned **off** by default (see `UIF setting: Sign=off`) but can be changed using `ykman`:
+To further improve security, configure your Yubikeys touch policy to require a touch for signatures. This is turned **off** by default (see `UIF setting: Sign=off`) but can be changed using `ykman` (see [install instructions](https://developers.yubico.com/yubikey-manager/)):
 
 ```bash
 > ykman openpgp info
