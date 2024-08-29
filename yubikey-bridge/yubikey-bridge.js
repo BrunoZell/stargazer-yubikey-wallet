@@ -105,7 +105,7 @@ async function handleMessage() {
 
                 if (keyAttributes.sign.toLowerCase() !== "secp256k1") {
                     sendMessage({
-                        error: `Siganture key is not of type secp256k1 on Yubikey with serial number ${serialNumber}.`,
+                        error: `Signature key is not of type secp256k1 on Yubikey with serial number ${serialNumber}.`,
                         serial: serialNumber,
                         type: keyAttributes.sign
                     });
@@ -138,12 +138,21 @@ async function handleMessage() {
             }
         } else if (message.command === 'signHash') {
             log(`Processing signHash message`);
-            const { hexString } = message;
+            const { hash } = message;
             try {
-                const stdout = execSync(`echo ${hexString} | gpg --sign --armor`, { encoding: 'utf8' });
-                log(`gpg output received:\n${stdout}`);
+                const signedArmor = execSync(`echo -n ${hash} | gpg --sign --armor --default-key <your-key-id>`, { encoding: 'utf8' });
+                log(`gpg signed armor output:\n${signedArmor}`);
 
-                sendMessage({ signature: null });
+                const signaturePackets = execSync('gpg --list-packets --verbose', {
+                    input: signedArmor,
+                    encoding: 'utf8'
+                });
+
+                log(`gpg signature packets:\n${signaturePackets}`);
+
+                const rawSignature = parseSignaturePacket(signaturePackets);
+
+                sendMessage({ signature: rawSignature });
             } catch (error) {
                 log(`gpg error: ${error.message}`);
                 sendMessage({ error: error.message });
@@ -216,6 +225,19 @@ function parsePublicKeyPacket(gpgOutput) {
         return publicKeyHex;
     } else {
         throw new Error("Public key packet not found.");
+    }
+}
+
+function parseSignaturePacket(gpgOutput) {
+    const signaturePacketRegex = /:signature packet:.*?data: ([0-9A-F]+).*?data: ([0-9A-F]+)/s;
+    const match = gpgOutput.match(signaturePacketRegex);
+
+    if (match) {
+        const rawSignature = match[1] + match[2];
+        log(`Raw signature extracted: ${rawSignature}`);
+        return rawSignature;
+    } else {
+        throw new Error("Signature packet not found.");
     }
 }
 
