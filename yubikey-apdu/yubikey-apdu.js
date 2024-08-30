@@ -162,20 +162,27 @@ const server = http.createServer(async (req, res) => {
             body += chunk.toString();
         });
         req.on('end', async () => {
+            console.log('Request received:', body); // Log the request body
             try {
                 const { hash, pin } = JSON.parse(body);
                 const rawSha512Buffer = Buffer.from(hash, 'hex');
                 const signature = await signDataWithYubikey(rawSha512Buffer, pin);
+                const response = JSON.stringify({ signature });
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ signature }));
+                res.end(response);
+                console.log('Response sent:', response); // Log the response
             } catch (error) {
+                const errorResponse = JSON.stringify({ error: error.message });
                 res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: error.message }));
+                res.end(errorResponse);
+                console.log('Error response sent:', errorResponse); // Log the error response
             }
         });
     } else {
+        const notFoundResponse = JSON.stringify({ error: 'Not Found' });
         res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Not Found' }));
+        res.end(notFoundResponse);
+        console.log('Not Found response sent:', notFoundResponse); // Log the 404 response
     }
 });
 
