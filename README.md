@@ -46,10 +46,12 @@ The Yubikey Bridge expects `gpg` to be an available command on your system. It u
 
 Installation instructions for GPG can be found [here](https://gnupg.org/download/).
 
-### Install OpenSSL and OpenSC
+### Install OpenSC and psclite
 
-- [OpenSSL Windows Installer](https://slproweb.com/products/Win32OpenSSL.html)
+- [pcsclite](https://pcsclite.apdu.fr/files/)
 - [OpenSC](https://github.com/OpenSC/OpenSC/releases)
+
+The smard card service must be running.
 
 ### Prepare the Yubikey
 
