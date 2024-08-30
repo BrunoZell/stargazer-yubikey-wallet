@@ -2,6 +2,12 @@ const pcsclite = require('pcsclite');
 const pcsc = pcsclite();
 const crypto = require('crypto');
 
+// Parameterize the PIN
+const pin = '123456';
+const pinHex = Buffer.from(pin, 'utf8').toString('hex');
+const pinLengthHex = (pin.length).toString(16).padStart(2, '0');
+
+// Prepare data for signing
 const data = 'Hello';
 const hash = crypto.createHash('sha512').update(data).digest('hex');
 console.log('SHA-512 Digest:', hash);
@@ -22,12 +28,23 @@ console.log('SHA-512 Digest:', hash);
 // Lc: 80 (length of the data in bytes, 128 in decimal)
 // Data: 4a 65 6c 6c 6f 20 57 6f 72 6c 64 21 aa bb cc dd ee ff 00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff
 
+// Construct the PIN APDU command
+const pinCLA = '00';
+const pinINS = '20'; // (Instruction byte for VERIFY
+const pinP1 = '00'; // Parameter 1, usually 00 for VERIFY
+const pinP2 = '81'; // reference control parameter: Must be 81 for SIGN as specified in 7.2.10
+const pinLc = pinLengthHex;
+const pinData = pinHex;
+
+const pinApduCommand = pinCLA + pinINS + pinP1 + pinP2 + pinLc + pinData;
+console.log('PIN APDU Command:', pinApduCommand);
 
 // Construct the signing APDU command
+// Reference 7.2.10, page 63 on: https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.pdf
 const CLA = '00';
-const INS = '2A';
-const P1 = '9E';
-const P2 = '9A';
+const INS = '2A'; // PERFORM SECURITY OPERATION
+const P1 = '9E'; // 9E specifies that the operation is to compute a digital signature
+const P2 = '9A'; // 9A specifies that the data is a hash that needs to be signed
 const Lc = '40'; // hex for 64, so 512 bits for a SHA512
 const Data = hash;
 const Le = '00';
@@ -38,10 +55,8 @@ console.log('APDU Command:', apduCommand);
 
 const apduCommands = [
     Buffer.from('00A4040006D27600012401', 'hex'),  // Select the OpenPGP application
-    Buffer.from('0020008106313233343536', 'hex'),  // Verify the PIN (replace with your PIN in hex)
-    //Buffer.from('802A9E80803961336538366231643035666332363037303534346362383766393163343536396336363165386661326533356661353737643133336136333530343837646132353334613263643262373032626134383432633036636666393661353739363266383331333735393335656531623535343266663339633065373962653539', 'hex'),  // Prepare data for signing
-    // Buffer.from('802A9E800101', 'hex'),  // Prepare data for signing 1 byte: 01
-    Buffer.from(apduCommand, 'hex'),  // Prepare data for signing 1 byte: 01
+    Buffer.from(pinApduCommand, 'hex'),  // Verify the PIN
+    Buffer.from(apduCommand, 'hex'),  // Perform signing
 ];
 
 pcsc.on('reader', function(reader) {
