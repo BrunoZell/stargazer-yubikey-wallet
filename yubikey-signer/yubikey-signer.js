@@ -13,6 +13,7 @@ async function loadPrivateKeyFromAsc(filePath) {
     // console.log(result.getKeyID());
     // console.log(result.getAlgorithmInfo());
     const keyID = result.getKeyID();
+    console.log("GPG Key ID: ", keyID.toHex());
     const key = result.getKeys(keyID)[0];
     // console.log(key.keyPacket);
     const keyBytes = key.keyPacket.privateParams.d;
