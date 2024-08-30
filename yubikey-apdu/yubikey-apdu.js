@@ -140,6 +140,7 @@ async function main() {
     } catch (error) {
         console.error(JSON.stringify({ error: error.message }));
     }
+    process.exit(0); // Terminate the process after successful response
 }
 
 main().catch(error => {
