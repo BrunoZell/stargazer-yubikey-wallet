@@ -39,7 +39,7 @@ async function loadPublicKeyFromYubikey() {
     const publicKeyPackets = execSync('gpg --list-packets --verbose', { input: publicKeyArmor, encoding: 'utf8' });
     const publicKeyHex = parsePublicKey_fromGpgListPublicKetPacketsVerboseOutput(publicKeyPackets);
 
-    return { publicKeyHex, fingerprint };
+    return publicKeyHex;
 }
 
 // Sign transaction with software key
