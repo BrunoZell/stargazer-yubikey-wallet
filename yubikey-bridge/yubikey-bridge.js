@@ -262,11 +262,15 @@ async function handleMessage() {
                 log(`Signing hash ${hash} with fingerprint ${fingerprint} and public key ${publicKey}`);
 
                 // Interpret hex string as buffer
-                const hashBuffer = Buffer.from(hash, 'hex');
+                const txHashUtf8StringBuffer = Buffer.from(hash, 'hex');
+
+                // Create SHA-512 hash of the input hash
+                const sha512Hash = crypto.createHash('sha512').update(txHashUtf8StringBuffer).digest();
+                log(`SHA-512 hash of input: ${sha512Hash.toString('hex')}`);
 
                 // Sign the binary data using Yubikey
                 const pin = "123456";
-                const signature = await signDataWithYubikey(hashBuffer, pin);
+                const signature = await signDataWithYubikey(sha512Hash, pin);
                 log(`Signature extracted from APDU: ${signature}`);
 
                 sendMessage({ signature });
