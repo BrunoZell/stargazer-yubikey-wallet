@@ -33,7 +33,9 @@ async function main() {
 
     // Sign on Yubikey
     // const signature = await this.signHashOnYubikey(fromPublicKey, gpgFingerprint, txHash);
-    const softwareSignature = keyStore.sign(privateKey, txHash);
+    const softwareSignature = await keyStore.sign(privateKey, txHash);
+
+    console.log(`Software Signature: ${softwareSignature}`);
 
     const uncompressedPublicKey = publicKey.length === 128 ? '04' + publicKey : publicKey;
 
