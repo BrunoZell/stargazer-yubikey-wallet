@@ -1,34 +1,40 @@
 const pcsclite = require('pcsclite');
-const crypto = require('crypto');
+const fs = require('fs');
+
+const logFile = fs.createWriteStream('./yubikey-apdu-logfile.txt', { flags: 'a' });
+
+function log(message) {
+    logFile.write(`${new Date().toISOString()} - ${message}\n`);
+}
 
 async function signDataWithYubikey(rawSha512Buffer, pin) {
     const pcsc = pcsclite();
 
     return new Promise((resolve, reject) => {
         pcsc.on('reader', function(reader) {
-            console.log('Reader detected:', reader.name);
+            log('Reader detected:', reader.name);
 
             reader.on('error', function(err) {
-                console.error('Error:', err.message);
+                log('Error:', err.message);
                 reject(err);
             });
 
             reader.on('status', function(status) {
-                console.log('Status:', status);
+                log('Status:', status);
 
                 // Check if a card is present
                 const changes = reader.state ^ status.state;
                 if (changes & reader.SCARD_STATE_PRESENT && status.state & reader.SCARD_STATE_PRESENT) {
-                    console.log('Card inserted');
+                    log('Card inserted');
 
                     reader.connect({ share_mode: reader.SCARD_SHARE_SHARED }, function(err, protocol) {
                         if (err) {
-                            console.error('Error connecting to card:', err.message);
+                            log('Error connecting to card:', err.message);
                             reject(err);
                             return;
                         }
 
-                        console.log('Protocol:', protocol);
+                        log('Protocol:', protocol);
 
                         // Parameterize the PIN
                         const pinHex = Buffer.from(pin, 'utf8').toString('hex');
@@ -43,7 +49,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const pinData = pinHex;
 
                         const pinApduCommand = pinCLA + pinINS + pinP1 + pinP2 + pinLc + pinData;
-                        console.log('PIN APDU Command:', pinApduCommand);
+                        log('PIN APDU Command:', pinApduCommand);
 
                         // Construct the signing APDU command
                         const CLA = '00';
@@ -55,7 +61,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const Le = '00';
 
                         const apduCommand = CLA + INS + P1 + P2 + Lc + Data + Le;
-                        console.log('APDU Command:', apduCommand);
+                        log('APDU Command:', apduCommand);
 
                         const apduCommands = [
                             Buffer.from('00A4040006D27600012401', 'hex'),  // Select the OpenPGP application
@@ -71,10 +77,10 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                                     signatureResponse = await new Promise((resolve, reject) => {
                                         reader.transmit(apdu, 256, protocol, function(err, data) {
                                             if (err) {
-                                                console.error('Error transmitting APDU:', err.message);
+                                                log('Error transmitting APDU:', err.message);
                                                 reject(err);
                                             } else {
-                                                console.log('APDU:', apdu.toString('hex'), '-> Response:', data.toString('hex'));
+                                                log('APDU:', apdu.toString('hex'), '-> Response:', data.toString('hex'));
                                                 resolve(data);
                                             }
                                         });
@@ -83,10 +89,10 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 
                                 reader.disconnect(reader.SCARD_LEAVE_CARD, function(err) {
                                     if (err) {
-                                        console.error('Error disconnecting from card:', err.message);
+                                        log('Error disconnecting from card:', err.message);
                                         reject(err);
                                     } else {
-                                        console.log('Disconnected from card');
+                                        log('Disconnected from card');
 
                                         // Extract the signature and status word
                                         const signature = signatureResponse.slice(0, 64).toString('hex');
@@ -108,29 +114,35 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
             });
 
             reader.on('end', function() {
-                console.log('Reader removed');
+                log('Reader removed');
             });
         });
 
         pcsc.on('error', function(err) {
-            console.error('PCSC error:', err.message);
+            log('PCSC error:', err.message);
             reject(err);
         });
     });
 }
 
-// Test the signDataWithYubikey function
-const testData = "hello";
-const testPin = "123456";
+async function main() {
+    const [,, hash, pin] = process.argv;
+    if (!hash || !pin) {
+        console.error('Usage: node yubikey-apdu.js <sha512-hash> <pin>');
+        process.exit(1);
+    }
 
-// Create SHA-512 hash of the test data
-const testDataHash = crypto.createHash('sha512').update(testData).digest();
+    const rawSha512Buffer = Buffer.from(hash, 'hex');
 
-// Run the function with test data
-signDataWithYubikey(testDataHash, testPin)
-    .then(signature => {
-        console.log('Signature:', signature);
-    })
-    .catch(error => {
-        console.error('Error:', error.message);
-    });
+    try {
+        const signature = await signDataWithYubikey(rawSha512Buffer, pin);
+        console.log(JSON.stringify({ signature }));
+    } catch (error) {
+        console.error(JSON.stringify({ error: error.message }));
+    }
+}
+
+main().catch(error => {
+    log(`Unhandled error: ${error.message}`);
+    process.exit(1);
+});
