@@ -144,11 +144,11 @@ async function handleMessage() {
 
                 // Convert hex string to binary buffer
                 const hashBuffer = Buffer.from(hash, 'hex');
-                
-                const signedArmor = execSync(`gpg --sign --armor --default-key ${fingerprint}`, {
-                    input: hashBuffer,
-                    encoding: 'utf8'
-                });
+
+                // Sign the binary data
+                const signedArmor = execSync('gpg --sign --armor --default-key ' + fingerprint, {
+                    input: hashBuffer
+                }).toString('utf8');
                 log(`gpg signed armor output:\n${signedArmor}`);
 
                 const signaturePackets = execSync('gpg --list-packets --verbose', {
