@@ -15,11 +15,10 @@ async function main() {
     console.log(`Address: ${address}`);
 
     // Create a test transaction
-    const dummyAddress = 'DAGXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'; // Replace with a valid dummy address
     const amount = 1; // 1 DAG
     const fee = 0.1; // Transaction fee
     const fromAddress = address;
-    const toAddress = dummyAddress;
+    const toAddress = 'DAG4o8VYNg34Mnxp9mT4zDDCZTvrHWniscr3aAYv';
 
     // const lastRef = await dag4.network.getAddressLastAcceptedTransactionRef(fromAddress);
     const lastRef /*: TransactionReference*/ = {
