@@ -1,0 +1,25 @@
+{
+    "name": "yubikey-apdu",
+    "version": "1.0.0",
+    "description": "Native Messaging Host to grant Stargazer Wallet access to a Yubikey as a hardware wallet.",
+    "author": "Bruno Zell <ask@bruno.wtf>",
+    "license": "MIT",
+    "main": "yubikey-apdu.js",
+    "bin": "yubikey-apdu.js",
+    "scripts": {
+        "start": "node yubikey-apdu.js",
+        "package": "pkg . --out-path ../dist",
+        "build": "yarn package"
+    },
+    "dependencies": {
+        "child_process": "^1.0.2",
+        "pcsclite": "^1.0.1"
+    },
+    "devDependencies": {
+        "pkg": "^5.3.1"
+    },
+    "pkg": {
+        "targets": ["node14-win-x64", "node14-macos-x64", "node14-linux-x64"],
+        "outputPath": "../dist"
+    }
+}
