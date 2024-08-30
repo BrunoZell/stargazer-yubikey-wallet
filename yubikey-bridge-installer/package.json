@@ -2,7 +2,7 @@
     "name": "yubikey-bridge-installer",
     "version": "1.0.0",
     "description": "Installer for Yubikey Wallet Native Messaging Host",
-    "author": "Bruno Zell",
+    "author": "Bruno Zell <ask@bruno.wtf>",
     "license": "MIT",
     "main": "install.js",
     "scripts": {

@@ -1,0 +1,31 @@
+{
+    "name": "yubikey-signer",
+    "version": "1.0.0",
+    "description": "Minimal implementation of a Constellation Yubikey hardware wallet.",
+    "author": "Bruno Zell <ask@bruno.wtf>",
+    "license": "MIT",
+    "main": "yubikey-signer.js",
+    "bin": "yubikey-signer.js",
+    "scripts": {
+        "start": "node yubikey-signer.js",
+        "package": "pkg . --out-path ../dist",
+        "build": "yarn package"
+    },
+    "dependencies": {
+        "@stardust-collective/dag4": "^2.2.2",
+        "@stardust-collective/dag4-keyring": "^2.2.2",
+        "@stardust-collective/dag4-network": "^2.2.2",
+        "child_process": "^1.0.2"
+    },
+    "devDependencies": {
+        "pkg": "^5.3.1"
+    },
+    "pkg": {
+        "targets": [
+            "node14-win-x64",
+            "node14-macos-x64",
+            "node14-linux-x64"
+        ],
+        "outputPath": "../dist"
+    }
+}

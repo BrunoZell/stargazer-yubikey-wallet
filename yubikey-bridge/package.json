@@ -2,7 +2,7 @@
     "name": "yubikey-bridge",
     "version": "1.0.0",
     "description": "Native Messaging Host to grant Stargazer Wallet access to a Yubikey as a hardware wallet.",
-    "author": "Bruno Zell",
+    "author": "Bruno Zell <ask@bruno.wtf>",
     "license": "MIT",
     "main": "yubikey-bridge.js",
     "bin": "yubikey-bridge.js",
