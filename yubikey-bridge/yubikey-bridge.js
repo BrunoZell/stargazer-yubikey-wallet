@@ -1,5 +1,6 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
+const http = require('http');
 
 const logFile = fs.createWriteStream('./yubikey-bridge-logfile.txt', { flags: 'a' });
 
@@ -84,8 +85,42 @@ function sendMessage(message) {
     }
 }
 
-async function signDataWithYubikey(rawSha512Buffer, pin) {
-    
+async function signDataWithYubikey(sha512HashHexString, pin) {
+    return new Promise((resolve, reject) => {
+        const postData = JSON.stringify({ hash: sha512HashHexString, pin });
+
+        const options = {
+            hostname: 'localhost',
+            port: 3000,
+            path: '/sign',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            res.on('end', () => {
+                if (res.statusCode === 200) {
+                    resolve(JSON.parse(data).signature);
+                } else {
+                    reject(new Error(JSON.parse(data).error));
+                }
+            });
+        });
+
+        req.on('error', (e) => {
+            reject(e);
+        });
+
+        req.write(postData);
+        req.end();
+    });
 }
 
 async function handleMessage() {
@@ -146,17 +181,15 @@ async function handleMessage() {
             try {
                 log(`Signing hash ${hash} with fingerprint ${fingerprint} and public key ${publicKey}`);
 
-                // // Interpret hex string as buffer
-                // const txHashUtf8StringBuffer = Buffer.from(hash, 'hex');
-
-                // // Create SHA-512 hash of the input hash
-                // const sha512Hash = crypto.createHash('sha512').update(txHashUtf8StringBuffer).digest();
-                // log(`SHA-512 hash of input: ${sha512Hash.toString('hex')}`);
-
-                // Sign the binary data using Yubikey
+                // Sign the binary data using Yubikey with APDU API
                 const pin = "123456";
-                const signatureResponse = execSync('yubikey-apdu ' + hash + ' ' + pin, { encoding: 'utf8' });
-                log(`Signature extracted from APDU IPC: ${signatureResponse}`);
+                const signatureResponse = await signDataWithYubikey(hash, pin);
+                log(`Signature extracted from APDU API: ${signatureResponse}`);
+
+                // Sign the binary data using Yubikey with APDU command line
+                // const pin = "123456";
+                // const signatureResponse = execSync('yubikey-apdu ' + hash + ' ' + pin, { encoding: 'utf8' });
+                // log(`Signature extracted from APDU IPC: ${signatureResponse}`);
 
                 sendMessage({ signature: signatureResponse.signature });
             } catch (error) {

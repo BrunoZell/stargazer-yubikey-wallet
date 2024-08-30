@@ -1,5 +1,6 @@
 const pcsclite = require('pcsclite');
 const fs = require('fs');
+const http = require('http');
 
 const logFile = fs.createWriteStream('./yubikey-apdu-logfile.txt', { flags: 'a' });
 
@@ -125,25 +126,59 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
     });
 }
 
-async function main() {
-    const [,, hash, pin] = process.argv;
-    if (!hash || !pin) {
-        console.error('Usage: node yubikey-apdu.js <sha512-hash> <pin>');
-        process.exit(1);
+///// As command line tool:
+
+// async function main() {
+//     const [,, hash, pin] = process.argv;
+//     if (!hash || !pin) {
+//         console.error('Usage: node yubikey-apdu.js <sha512-hash> <pin>');
+//         process.exit(1);
+//     }
+
+//     const rawSha512Buffer = Buffer.from(hash, 'hex');
+
+//     try {
+//         const signature = await signDataWithYubikey(rawSha512Buffer, pin);
+//         console.log(JSON.stringify({ signature }));
+//     } catch (error) {
+//         console.error(JSON.stringify({ error: error.message }));
+//     }
+//     process.exit(0); // Terminate the process after successful response
+// }
+
+// main().catch(error => {
+//     log(`Unhandled error: ${error.message}`);
+//     process.exit(1);
+// });
+
+
+///// As http server:
+
+
+const server = http.createServer(async (req, res) => {
+    if (req.method === 'POST' && req.url === '/sign') {
+        let body = '';
+        req.on('data', chunk => {
+            body += chunk.toString();
+        });
+        req.on('end', async () => {
+            try {
+                const { hash, pin } = JSON.parse(body);
+                const rawSha512Buffer = Buffer.from(hash, 'hex');
+                const signature = await signDataWithYubikey(rawSha512Buffer, pin);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ signature }));
+            } catch (error) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message }));
+            }
+        });
+    } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not Found' }));
     }
+});
 
-    const rawSha512Buffer = Buffer.from(hash, 'hex');
-
-    try {
-        const signature = await signDataWithYubikey(rawSha512Buffer, pin);
-        console.log(JSON.stringify({ signature }));
-    } catch (error) {
-        console.error(JSON.stringify({ error: error.message }));
-    }
-    process.exit(0); // Terminate the process after successful response
-}
-
-main().catch(error => {
-    log(`Unhandled error: ${error.message}`);
-    process.exit(1);
+server.listen(3000, () => {
+    log('Server is listening on port 3000');
 });
