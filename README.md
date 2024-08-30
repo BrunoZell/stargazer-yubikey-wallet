@@ -21,11 +21,11 @@ Ensure you have the following installed:
 
 ### Install Dependencies
 
-To install dependencies, run `yarn`
+To install dependencies, run `yarn install` from both the root of the repository and the `stargazer-wallet-ext` directory.
 
 ### Install the Extension in Chrome
 
-1. Build the extension: `yarn chrome-extension:build`
+1. Build the extension: `cd stargazer-wallet-ext && yarn build:chrome`
 2. Go to `chrome://extensions` in the browser.
 3. Enable `Developer Mode`.
 4. Click on `Load Unpacked Extension…`.
