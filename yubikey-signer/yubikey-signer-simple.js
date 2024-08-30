@@ -5,40 +5,97 @@ const { readFileSync } = require('fs');
 const openpgp = require('openpgp');
 const { execSync } = require('child_process');
 const secp = require("@noble/secp256k1");
+const fs = require('fs');
 
 function log(message) {
     console.log(message);
 }
 
-const txHash = "4482a285c51066ee59c69b59b773e9e7a2de5a7de9ea9890a302930c49f382dc";
+const txHash = "9a3e86b1d05fc26070544cb87f91c4569c661e8fa2e35fa577d133a6350487da2534a2cd2b702ba4842c06cff96a57962f831375935ee1b5542ff39c0e79be59";
 
 console.log(`Prepared Transaction ${txHash}:`);
 
 async function main() {
-    var privateKey = await loadPrivateKeyFromFile('private_key.asc');
-    var publicKey = await loadPublicKeyFromAsc('private_key.asc');
+    var privateKey = (await loadPrivateKeyFromFile('private_key.asc')).toUpperCase();
+    var publicKey = (await loadPublicKeyFromAsc('private_key.asc')).toUpperCase();
+    // Convert txHash to UTF-8 bytes
+    const txHashUtf8Bytes = Buffer.from(txHash, 'utf8');
+    console.log(`txHash as UTF-8 bytes: ${txHashUtf8Bytes.toString('hex')}`);
+
+    // For comparison, also log the original hex representation
+    console.log(`Original txHash (hex): ${txHash}`);
+
+    // Calculate SHA-512 hash of the UTF-8 bytes
+    const sha512HashOfTxHashUtf8 = keyStore.sha512(txHashUtf8Bytes);
     var sha512HashOfTxHashString = keyStore.sha512(txHash);
     var txHashBuffer = Buffer.from(txHash, "hex");
     var sha512HashOfTxHashBuffer = keyStore.sha512(txHashBuffer);
 
 
+    console.log(`sha512HashOfTxHashUtf8: ${sha512HashOfTxHashUtf8}`);
     console.log(`sha512HashOfTxHashString: ${sha512HashOfTxHashString}`);
     console.log(`sha512HashOfTxHashBuffer: ${sha512HashOfTxHashBuffer}`);
 
+    const signatureUtf8BytesRaw = await secp.sign(sha512HashOfTxHashUtf8, privateKey);
     const signatureStringRaw = await secp.sign(sha512HashOfTxHashString, privateKey);
     const signatureBufferRaw = await secp.sign(sha512HashOfTxHashBuffer, privateKey);
 
+    const signatureUtf8Bytes = Buffer.from(signatureUtf8BytesRaw).toString('hex');
     const signatureString = Buffer.from(signatureStringRaw).toString('hex');
     const signatureBuffer = Buffer.from(signatureBufferRaw).toString('hex');
 
     console.log(`signature string: ${signatureString}`);
     console.log(`signature buffer: ${signatureBuffer}`);
 
+    const signatureUtf8BytesValid = secp.verify(signatureString, signatureUtf8Bytes, publicKey);
     const signatureStringValid = secp.verify(signatureString, sha512HashOfTxHashString, publicKey);
     const signatureBufferValid = secp.verify(signatureBuffer, sha512HashOfTxHashBuffer, publicKey);
 
-    console.log(`signature string valid: ${signatureStringValid}`);
-    console.log(`signature buffer valid: ${signatureBufferValid}`);
+    console.log(`signature utf8 bytes valid: ${signatureUtf8BytesValid} | ${keyStore.verify(publicKey, txHash, signatureUtf8Bytes)}`);
+    console.log(`signature string valid: ${signatureStringValid} | ${keyStore.verify(publicKey, txHash, signatureString)}`);
+    console.log(`signature buffer valid: ${signatureBufferValid} | ${keyStore.verify(publicKey, txHash, signatureBuffer)}`);
+
+    const yubikeyPublicKey = await loadPublicKeyFromYubikey();
+    const yubikeyFingerprint = "79825D85C8A09191DB3C53DC9B70B27E1322DFEE";
+    console.log(`yubikey public key: ${yubikeyPublicKey}`);
+    console.log(`yubikey public key match file derive public key: ${yubikeyPublicKey === publicKey}`);
+
+
+    console.log(txHashUtf8Bytes);
+    console.log(txHashUtf8Bytes.length);
+    console.log(txHashUtf8Bytes.byteLength);
+
+
+    const signatureImplicitSha512OfUtf8BytesPackets = execSync(`gpg --digest-algo SHA512 --sign --armor --default-key 79825D85C8A09191DB3C53DC9B70B27E1322DFEE | gpg --list-packets --verbose`, {
+        input: txHashUtf8Bytes,
+        encoding: 'binary'
+    }).toString('utf8');
+    const signatureImplicitSha512FromUtf8BytesSignature = parseSignature_fromGpgListSignaturePacketsVerboseOutput(signatureImplicitSha512OfUtf8BytesPackets);
+        
+    console.log(`signature implicit sha512 from utf8 bytes: ${signatureImplicitSha512FromUtf8BytesSignature}`);
+    const signatureImplicitSha512FromUtf8BytesValid = secp.verify(signatureImplicitSha512FromUtf8BytesSignature, sha512HashOfTxHashUtf8, publicKey);
+    console.log(`signature implicit sha512 from utf8 bytes valid: ${signatureImplicitSha512FromUtf8BytesValid} | ${keyStore.verify(publicKey, txHash, signatureImplicitSha512FromUtf8BytesSignature)}`);
+
+    // Write txHash to file
+    const rawSignatureFile = 'signature.sig';
+    const rawSignatureFileBuffer = Buffer.from(signatureImplicitSha512FromUtf8BytesSignature, 'hex');
+    fs.writeFileSync(rawSignatureFile, rawSignatureFileBuffer, 'binary');
+
+    
+    // const signatureImplicitSha512Packets = execSync(`echo -n ${txHash} | gpg --digest-algo SHA512 --sign --armor --default-key 79825D85C8A09191DB3C53DC9B70B27E1322DFEE | gpg --list-packets --verbose`).toString('utf8');
+    // const signatureImplicitSha512FromFileSignature = parseSignature_fromGpgListSignaturePacketsVerboseOutput(signatureImplicitSha512Packets);
+    
+    // console.log(`signature implicit sha512 from file: ${signatureImplicitSha512FromFileSignature}`);
+    // const signatureImplicitSha512FromFileValid = secp.verify(signatureImplicitSha512FromFileSignature, sha512HashOfTxHashString, publicKey);
+    // console.log(`signature implicit sha512 from file valid: ${signatureImplicitSha512FromFileValid} | ${keyStore.verify(publicKey, txHash, signatureImplicitSha512FromFileSignature)}`);
+
+    // const txHashBuffer = Buffer.from(txHash, "hex");
+    // const sha512Hash = keyStore.sha512(txHash);
+    // const rawGpgSignDigest = txHashBuffer;
+    // const rawGpgSignDigest = txHash;
+    // const signedArmor = execSync(`gpg --digest-algo SHA512 --sign --armor --default-key ${yubikeyFingerprint} --binary`, { input: txHashBuffer }).toString('utf8');
+    // const signaturePackets = execSync('gpg --list-packets --verbose', { input: signedArmor, encoding: 'utf8' });
+
 }
 
 main().catch(console.error);
@@ -189,7 +246,7 @@ function parseSignature_fromGpgListSignaturePacketsVerboseOutput(gpgOutput) {
 
     if (match) {
         const rawSignature = match[1] + match[2];
-        log(`Raw signature extracted: ${rawSignature}`);
+        log(`Raw signature extracted: ${rawSignature} from packet match:\n${match[0]}`);
         return rawSignature;
     } else {
         throw new Error("Signature packet not found.");

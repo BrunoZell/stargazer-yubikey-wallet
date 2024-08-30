@@ -1,0 +1,17 @@
+{
+    "id": "Y2",
+    "bipIndex": null,
+    "label": "Yubikey 2",
+    "type": "YAW",
+    "accounts": [
+        {
+            "address": "DAG4o8VYNg34Mnxp9mT4zDDCZTvrHWniscr3aAYv",
+            "network": "Constellation",
+            "publicKey": "0429365410C1E84AD9B0D6E58D70ADCBA1A90086021D2F65854F895E0DFF46111B6072FE55FB5E41B47BA4AA376FE0651368758DEB24445093D1F14F888A9D903E",
+            "deviceId": ""
+        }
+    ],
+    "supportedAssets": [
+        "DAG"
+    ]
+}

@@ -16,6 +16,7 @@
         "@stardust-collective/dag4-keyring": "^2.2.2",
         "@stardust-collective/dag4-network": "^2.2.2",
         "child_process": "^1.0.2",
+        "noble-secp256k1": "^1.2.14",
         "openpgp": "^5.11.2"
     },
     "devDependencies": {

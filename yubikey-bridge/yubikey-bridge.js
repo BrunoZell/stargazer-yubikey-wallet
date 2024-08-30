@@ -142,11 +142,11 @@ async function handleMessage() {
             try {
                 log(`Signing hash ${hash} with fingerprint ${fingerprint} and public key ${publicKey}`);
 
-                // Convert hex string to binary buffer
-                const hashBuffer = Buffer.from(hash, 'hex');
+                // Interpret hex string as UTF8 string and put it as bytes
+                const hashBuffer = Buffer.from(hash, 'utf8');
 
                 // Sign the binary data
-                const signedArmor = execSync('gpg --sign --armor --default-key ' + fingerprint, {
+                const signedArmor = execSync('gpg --digest-algo SHA512 --sign --armor --default-key ' + fingerprint, {
                     input: hashBuffer
                 }).toString('utf8');
                 log(`gpg signed armor output:\n${signedArmor}`);
@@ -242,7 +242,7 @@ function parseSignature_fromGpgListSignaturePacketsVerboseOutput(gpgOutput) {
 
     if (match) {
         const rawSignature = match[1] + match[2];
-        log(`Raw signature extracted: ${rawSignature}`);
+        log(`Raw signature extracted: ${rawSignature} from packet match:\n${match[0]}`);
         return rawSignature;
     } else {
         throw new Error("Signature packet not found.");

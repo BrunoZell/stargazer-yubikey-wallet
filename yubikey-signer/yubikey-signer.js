@@ -9,6 +9,21 @@ function log(message) {
     console.log(message);
 }
 
+const amount = 1; // 1 DAG
+const fee = 0.1; // Transaction fee
+const fromAddress = 'DAG53VFwtir9K3WfeCLU7EVsmhJGYZtwf9YJJE1J';
+const toAddress = 'DAG4o8VYNg34Mnxp9mT4zDDCZTvrHWniscr3aAYv';
+const lastRef = {
+    hash: "0000000000000000000000000000000000000000000000000000000000000000",
+    ordinal: 0,
+};
+
+const { tx, hash: txHash } = keyStore.prepareTx(amount, toAddress, fromAddress, lastRef, fee, '2.0');
+
+console.log(`Prepared Transaction ${txHash}:`);
+console.log(tx);
+
+
 // Load private key from private_key.asc file
 async function loadPrivateKeyFromFile(filePath) {
     const armoredKey = readFileSync(filePath, 'utf8');
@@ -51,35 +66,24 @@ async function signTransactionWithSoftwareKey(filePath, txHash) {
 
 // Sign transaction on Yubikey
 async function signTransactionOnYubikey(fingerprint, txHash) {
-    // const sha512Hash = keyStore.sha512(txHash);
-    const signedArmor = execSync(`gpg --digest-algo SHA512 --sign --armor --default-key ${fingerprint}`, { input: txHash, encoding: 'utf8' }).toString('utf8');
+    const txHashBuffer = Buffer.from(txHash, "hex");
+    const sha512Hash = keyStore.sha512(txHash);
+    const rawGpgSignDigest = txHashBuffer;
+    // const rawGpgSignDigest = txHash;
+    const signedArmor = execSync(`gpg --digest-algo SHA512 --sign --armor --default-key ${fingerprint} --binary`, { input: txHashBuffer }).toString('utf8');
     const signaturePackets = execSync('gpg --list-packets --verbose', { input: signedArmor, encoding: 'utf8' });
     const rawSignature = parseSignature_fromGpgListSignaturePacketsVerboseOutput(signaturePackets);
 
     return rawSignature;
 }
 
-async function main(loadPublicKey, signTransaction) {
+async function signAndVerify(loadPublicKey, signTransaction) {
     const publicKeyHex = await loadPublicKey();
     console.log(`Loaded Public Key: ${publicKeyHex}`);
 
     const address = keyStore.getDagAddressFromPublicKey(publicKeyHex);
-    console.log(`Address: ${address}`);
-
-    const amount = 1; // 1 DAG
-    const fee = 0.1; // Transaction fee
-    const fromAddress = address;
-    const toAddress = 'DAG4o8VYNg34Mnxp9mT4zDDCZTvrHWniscr3aAYv';
-
-    const lastRef = {
-        hash: "0000000000000000000000000000000000000000000000000000000000000000",
-        ordinal: 0,
-    };
-
-    const { tx, hash: txHash } = keyStore.prepareTx(amount, toAddress, fromAddress, lastRef, fee, '2.0');
-
-    console.log(`Prepared Transaction ${txHash}:`);
-    console.log(tx);
+    console.log(`Inferred Address: ${address}`);
+    console.log(`Matches Provided Address? ${address === fromAddress}`);
 
     const signature = await signTransaction(txHash);
     console.log(`Signature: ${signature}`);
@@ -94,18 +98,23 @@ async function main(loadPublicKey, signTransaction) {
     }
 }
 
-// Example usage
-main(
-    loadPublicKeyFromAsc.bind(null, 'private_key.asc'),
-    signTransactionWithSoftwareKey.bind(null, 'private_key.asc')
-).catch(console.error);
+async function main() {
+    await signAndVerify(
+        loadPublicKeyFromAsc.bind(null, 'private_key.asc'),
+        signTransactionWithSoftwareKey.bind(null, 'private_key.asc')
+    )
 
-// main(loadPublicKeyFromYubikey, signTransactionOnYubikey).catch(console.error);
+    console.log('\n\n----------------------------------------\n\n');
 
-main(
-    loadPublicKeyFromYubikey.bind(null),
-    signTransactionOnYubikey.bind(null, "9B70B27E1322DFEE")
-).catch(console.error);
+    await signAndVerify(
+        loadPublicKeyFromYubikey.bind(null),
+        signTransactionOnYubikey.bind(null, "9B70B27E1322DFEE")
+    )
+}
+
+main().catch(console.error);
+
+// -------------------------------------------------------------------------------------------------
 
 function parseFingerprint_fromGpgCardStatusOutput(gpgOutput) {
     const signatureKeyFingerprintRegex = /Signature key\s*\.*:\s+([0-9A-F\s]+)(?=\r?\n)/;

@@ -46,6 +46,11 @@ The Yubikey Bridge expects `gpg` to be an available command on your system. It u
 
 Installation instructions for GPG can be found [here](https://gnupg.org/download/).
 
+### Install OpenSSL and OpenSC
+
+- [OpenSSL Windows Installer](https://slproweb.com/products/Win32OpenSSL.html)
+- [OpenSC](https://github.com/OpenSC/OpenSC/releases)
+
 ### Prepare the Yubikey
 
 When you buy a new Yubikey, plug it into your computer and run `gpg --card-status`, it looks like this:
