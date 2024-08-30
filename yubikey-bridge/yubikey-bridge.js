@@ -93,7 +93,7 @@ async function handleMessage() {
                 const statusStdout = execSync('gpg --card-status', { encoding: 'utf8' });
                 log(`gpg output received:\n${statusStdout}`);
 
-                const { fingerprint, serialNumber, hasNoSignatureKey, keyAttributes } = parseGpgStatusOutput(statusStdout);
+                const { fingerprint, serialNumber, hasNoSignatureKey, keyAttributes } = parseFingerprint_fromGpgCardStatusOutput(statusStdout);
 
                 if (hasNoSignatureKey || !fingerprint) {
                     sendMessage({
@@ -124,7 +124,7 @@ async function handleMessage() {
 
                 log(`gpg key packets:\n${publicKeyPackets}`);
 
-                const publicKeyHex = parsePublicKeyPacket(publicKeyPackets);
+                const publicKeyHex = parsePublicKey_fromGpgListPublicKetPacketsVerboseOutput(publicKeyPackets);
 
                 sendMessage({
                     fingerprint: fingerprint,
@@ -158,7 +158,7 @@ async function handleMessage() {
 
                 log(`gpg signature packets:\n${signaturePackets}`);
 
-                const rawSignature = parseSignaturePacket(signaturePackets);
+                const rawSignature = parseSignature_fromGpgListSignaturePacketsVerboseOutput(signaturePackets);
 
                 sendMessage({ signature: rawSignature });
             } catch (error) {
@@ -174,7 +174,7 @@ async function handleMessage() {
     }
 }
 
-function parseGpgStatusOutput(gpgOutput) {
+function parseFingerprint_fromGpgCardStatusOutput(gpgOutput) {
     const signatureKeyFingerprintRegex = /Signature key\s*\.*:\s+([0-9A-F\s]+)(?=\r?\n)/;
     const signatureKeyNoneRegex = /Signature key\s*\.*:\s+\[none\]/;
     const serialNumberRegex = /Serial number\s*\.*:\s+(\d+)/;
@@ -222,7 +222,7 @@ function parseGpgStatusOutput(gpgOutput) {
     return { fingerprint: signatureKeyFingerprint, serialNumber, hasNoSignatureKey, keyAttributes };
 }
 
-function parsePublicKeyPacket(gpgOutput) {
+function parsePublicKey_fromGpgListPublicKetPacketsVerboseOutput(gpgOutput) {
     // Regular expression to match the public key packet and extract pkey[1]
     const publicKeyPacketRegex = /:public key packet:\r?\n\s+version \d+, algo \d+, created \d+, expires \d+\r?\n\s+pkey\[0\]: [0-9A-F]+ .+\r?\n\s+pkey\[1\]: ([0-9A-F]+)\r?\n\s+keyid: [0-9A-F]+/;
     const match = gpgOutput.match(publicKeyPacketRegex);
@@ -236,7 +236,7 @@ function parsePublicKeyPacket(gpgOutput) {
     }
 }
 
-function parseSignaturePacket(gpgOutput) {
+function parseSignature_fromGpgListSignaturePacketsVerboseOutput(gpgOutput) {
     const signaturePacketRegex = /:signature packet:.*?data: ([0-9A-F]+).*?data: ([0-9A-F]+)/s;
     const match = gpgOutput.match(signaturePacketRegex);
 
