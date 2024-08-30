@@ -141,7 +141,14 @@ async function handleMessage() {
             const { publicKey, fingerprint, hash } = message;
             try {
                 log(`Signing hash ${hash} with fingerprint ${fingerprint} and public key ${publicKey}`);
-                const signedArmor = execSync(`echo -n ${hash} | gpg --sign --armor --default-key ${fingerprint}`, { encoding: 'utf8' });
+
+                // Convert hex string to binary buffer
+                const hashBuffer = Buffer.from(hash, 'hex');
+                
+                const signedArmor = execSync(`gpg --sign --armor --default-key ${fingerprint}`, {
+                    input: hashBuffer,
+                    encoding: 'utf8'
+                });
                 log(`gpg signed armor output:\n${signedArmor}`);
 
                 const signaturePackets = execSync('gpg --list-packets --verbose', {
