@@ -51,8 +51,8 @@ async function signTransactionWithSoftwareKey(filePath, txHash) {
 
 // Sign transaction on Yubikey
 async function signTransactionOnYubikey(fingerprint, txHash) {
-    const hashBuffer = Buffer.from(txHash, 'hex');
-    const signedArmor = execSync(`gpg --sign --armor --default-key ${fingerprint}`, { input: hashBuffer }).toString('utf8');
+    // const sha512Hash = keyStore.sha512(txHash);
+    const signedArmor = execSync(`gpg --digest-algo SHA512 --sign --armor --default-key ${fingerprint}`, { input: txHash, encoding: 'utf8' }).toString('utf8');
     const signaturePackets = execSync('gpg --list-packets --verbose', { input: signedArmor, encoding: 'utf8' });
     const rawSignature = parseSignature_fromGpgListSignaturePacketsVerboseOutput(signaturePackets);
 
