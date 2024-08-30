@@ -86,30 +86,31 @@ function sendMessage(message) {
 }
 
 async function signDataWithYubikey(sha512HashHexString, pin) {
+    const postData = JSON.stringify({ hash: sha512HashHexString, pin });
+
+    const options = {
+        hostname: 'localhost',
+        port: 3000,
+        path: '/sign',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData)
+        }
+    };
+
     return new Promise((resolve, reject) => {
-        const postData = JSON.stringify({ hash: sha512HashHexString, pin });
-
-        const options = {
-            hostname: 'localhost',
-            port: 3000,
-            path: '/sign',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
-            }
-        };
-
         const req = http.request(options, (res) => {
             let data = '';
             res.on('data', (chunk) => {
                 data += chunk;
             });
             res.on('end', () => {
+                log('APDU API raw response:', data);
                 if (res.statusCode === 200) {
-                    resolve(JSON.parse(data).signature);
+                    resolve(JSON.parse(data));
                 } else {
-                    reject(new Error(JSON.parse(data).error));
+                    reject(new Error(JSON.parse(data)));
                 }
             });
         });
