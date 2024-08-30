@@ -9,7 +9,6 @@
     "scripts": {
         "chrome-extension:build": "yarn workspace stargazer-wallet-ext build:chrome",
         "yubikey-bridge:build": "yarn workspace yubikey-bridge build",
-        "yubikey-bridge:install": "yarn workspace yubikey-bridge-installer install-wallet",
         "yubikey-bridge:update": "yarn workspace yubikey-bridge build && yarn workspace yubikey-bridge-installer install-wallet"
     },
     "devDependencies": {

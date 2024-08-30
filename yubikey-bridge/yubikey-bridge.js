@@ -138,9 +138,10 @@ async function handleMessage() {
             }
         } else if (message.command === 'signHash') {
             log(`Processing signHash message`);
-            const { hash } = message;
+            const { publicKey, fingerprint, hash } = message;
             try {
-                const signedArmor = execSync(`echo -n ${hash} | gpg --sign --armor --default-key <your-key-id>`, { encoding: 'utf8' });
+                log(`Signing hash ${hash} with fingerprint ${fingerprint} and public key ${publicKey}`);
+                const signedArmor = execSync(`echo -n ${hash} | gpg --sign --armor --default-key ${fingerprint}`, { encoding: 'utf8' });
                 log(`gpg signed armor output:\n${signedArmor}`);
 
                 const signaturePackets = execSync('gpg --list-packets --verbose', {

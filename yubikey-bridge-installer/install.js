@@ -34,6 +34,8 @@ function installOnWindows() {
     // Copy the executable to the path
     fs.copyFileSync(executablePath, manifestJson.path);
 
+    console.log(`Binary placed in: ${manifestJson.path}`);
+
     // Add the registry key
     exec(`reg add "${registryPath}" /ve /t REG_SZ /d "${manifestJsonPath}" /f`, (error, stdout, stderr) => {
         if (error) {
@@ -60,6 +62,8 @@ function installOnMacLinux() {
 
     // Copy the executable to the path
     fs.copyFileSync(executablePath, manifestJson.path);
+
+    console.log(`Binary placed in: ${manifestJson.path}`);
 
     console.log('Manifest JSON and executable placed successfully');
 }
