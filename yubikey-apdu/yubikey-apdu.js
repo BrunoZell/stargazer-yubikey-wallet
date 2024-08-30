@@ -10,12 +10,12 @@ console.log('SHA-512 Digest:', hash);
 // CLA: 00 (Class byte)
 // INS: 20 (Instruction byte for VERIFY)
 // P1: 00 (Parameter 1, usually 00 for VERIFY)
-// P2: 82 (Parameter 2, reference control parameter for PIN)
+// P2: 81 (Parameter 2, reference control parameter for PIN)
 // 06: Length of the data field (length of the PIN in bytes, which is 6 in this case of 123456)
 // Data: The PIN in hexadecimal format
 
 // Prepare data for signing
-// CLA: 80
+// CLA: 00
 // INS: 2A (PERFORM SECURITY OPERATION)
 // P1: 9E (This indicates the type of security operation. For the PERFORM SECURITY OPERATION command, 9E specifies that the operation is to compute a digital signature.)
 // P2: 9A | 80 (9A specifies that the data is a hash that needs to be signed; 80 means arbitrary data to be signed)
@@ -28,7 +28,7 @@ const CLA = '00';
 const INS = '2A';
 const P1 = '9E';
 const P2 = '9A';
-const Lc = '40'; // hex for 64, so 512 bytes for a SHA512
+const Lc = '40'; // hex for 64, so 512 bits for a SHA512
 const Data = hash;
 const Le = '00';
 
@@ -38,11 +38,10 @@ console.log('APDU Command:', apduCommand);
 
 const apduCommands = [
     Buffer.from('00A4040006D27600012401', 'hex'),  // Select the OpenPGP application
-    Buffer.from('0020008206313233343536', 'hex'),  // Verify the PIN (replace with your PIN in hex)
+    Buffer.from('0020008106313233343536', 'hex'),  // Verify the PIN (replace with your PIN in hex)
     //Buffer.from('802A9E80803961336538366231643035666332363037303534346362383766393163343536396336363165386661326533356661353737643133336136333530343837646132353334613263643262373032626134383432633036636666393661353739363266383331333735393335656531623535343266663339633065373962653539', 'hex'),  // Prepare data for signing
     // Buffer.from('802A9E800101', 'hex'),  // Prepare data for signing 1 byte: 01
     Buffer.from(apduCommand, 'hex'),  // Prepare data for signing 1 byte: 01
-    Buffer.from('0088000000', 'hex')  // Perform the signing operation
 ];
 
 pcsc.on('reader', function(reader) {
