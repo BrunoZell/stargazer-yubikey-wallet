@@ -1,12 +1,35 @@
 const { dag4 } = require('@stardust-collective/dag4');
 const { keyStore } = require('@stardust-collective/dag4-keystore');
 const { TransactionReference } = require('@stardust-collective/dag4-network');
-const { execSync } = require('child_process');
+const { readFileSync } = require('fs');
+const openpgp = require('openpgp');
 
-async function main() {
+async function loadPrivateKeyFromAsc(filePath) {
+    const armoredKey = readFileSync(filePath, 'utf8');
+    // console.log(armoredKey);
+    // console.log(openpgp);
+    const result = await openpgp.readPrivateKey({ armoredKey });
+    // console.log(result.getFingerprint());
+    // console.log(result.getKeyID());
+    // console.log(result.getAlgorithmInfo());
+    const keyID = result.getKeyID();
+    const key = result.getKeys(keyID)[0];
+    // console.log(key.keyPacket);
+    const keyBytes = key.keyPacket.privateParams.d;
+    const keyHex = Buffer.from(keyBytes).toString('hex');
+    return keyHex;
+}
+
+async function generatePrivateKey() {
     // Generate a new private key
     const privateKey = keyStore.generatePrivateKey();
-    console.log(`Private Key: ${privateKey}`);
+    return privateKey;
+}
+
+async function main() {
+    // const privateKey = generatePrivateKey();
+    const privateKey = await loadPrivateKeyFromAsc('private_key.asc');
+    console.log(`Loaded Private Key: ${privateKey}`);
 
     // Generate the corresponding public key and address
     const publicKey = keyStore.getPublicKeyFromPrivate(privateKey);
