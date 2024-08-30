@@ -1,5 +1,10 @@
 const pcsclite = require('pcsclite');
 const pcsc = pcsclite();
+const crypto = require('crypto');
+
+const data = 'Hello';
+const hash = crypto.createHash('sha512').update(data).digest('hex');
+console.log('SHA-512 Digest:', hash);
 
 // Verify PIN APDU Command Format
 // CLA: 00 (Class byte)
@@ -17,11 +22,26 @@ const pcsc = pcsclite();
 // Lc: 80 (length of the data in bytes, 128 in decimal)
 // Data: 4a 65 6c 6c 6f 20 57 6f 72 6c 64 21 aa bb cc dd ee ff 00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff
 
+
+// Construct the signing APDU command
+const CLA = '00';
+const INS = '2A';
+const P1 = '9E';
+const P2 = '9A';
+const Lc = '40'; // hex for 64, so 512 bytes for a SHA512
+const Data = hash;
+const Le = '00';
+
+const apduCommand = CLA + INS + P1 + P2 + Lc + Data + Le;
+console.log('APDU Command:', apduCommand);
+
+
 const apduCommands = [
     Buffer.from('00A4040006D27600012401', 'hex'),  // Select the OpenPGP application
     Buffer.from('0020008206313233343536', 'hex'),  // Verify the PIN (replace with your PIN in hex)
     //Buffer.from('802A9E80803961336538366231643035666332363037303534346362383766393163343536396336363165386661326533356661353737643133336136333530343837646132353334613263643262373032626134383432633036636666393661353739363266383331333735393335656531623535343266663339633065373962653539', 'hex'),  // Prepare data for signing
-    Buffer.from('802A9E800101', 'hex'),  // Prepare data for signing 1 byte: 01
+    // Buffer.from('802A9E800101', 'hex'),  // Prepare data for signing 1 byte: 01
+    Buffer.from(apduCommand, 'hex'),  // Prepare data for signing 1 byte: 01
     Buffer.from('0088000000', 'hex')  // Perform the signing operation
 ];
 
