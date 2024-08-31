@@ -5,7 +5,9 @@ const http = require('http');
 const logFile = fs.createWriteStream('./yubikey-apdu-logfile.txt', { flags: 'a' });
 
 function log(message) {
-    logFile.write(`${new Date().toISOString()} - ${message}\n`);
+    logFile.write(`${new Date().toISOString()} - ${message}\n`, () => {
+        logFile.end();
+    });
 }
 
 async function signDataWithYubikey(rawSha512Buffer, pin) {
@@ -21,7 +23,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
             });
 
             reader.on('status', function(status) {
-                log(`Status: ${status}`);
+                log(`Status: ${JSON.stringify(status)}`);
 
                 // Check if a card is present
                 const changes = reader.state ^ status.state;
@@ -36,6 +38,8 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         }
 
                         log(`Protocol: ${protocol}`);
+                        const pgpApduCommand ='00A4040006D27600012401';
+                        log(`PGP APDU Command: ${pgpApduCommand}`);
 
                         // Parameterize the PIN
                         const pinHex = Buffer.from(pin, 'utf8').toString('hex');
@@ -62,10 +66,10 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const Le = '00';
 
                         const apduCommand = CLA + INS + P1 + P2 + Lc + Data + Le;
-                        log(`APDU Command: ${apduCommand}`);
+                        log(`SIGN APDU Command: ${apduCommand}`);
 
                         const apduCommands = [
-                            Buffer.from('00A4040006D27600012401', 'hex'),  // Select the OpenPGP application
+                            Buffer.from(pgpApduCommand, 'hex'),  // Select the OpenPGP application
                             Buffer.from(pinApduCommand, 'hex'),  // Verify the PIN
                             Buffer.from(apduCommand, 'hex'),  // Perform signing
                         ];
@@ -81,7 +85,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                                                 log(`Error transmitting APDU: ${err.message}`);
                                                 reject(err);
                                             } else {
-                                                log(`APDU: ${apdu.toString('hex')} -> Response: ${data.toString('hex')}`);
+                                                log(`APDU Executed: ${apdu.toString('hex')} -> Response: ${data.toString('hex')}`);
                                                 resolve(data);
                                             }
                                         });
@@ -93,7 +97,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                                         log(`Error disconnecting from card: ${err.message}`);
                                         reject(err);
                                     } else {
-                                        log('Disconnected from card');
+                                        log('Disconnected from card with final signature response: ' + signatureResponse.toString('hex'));
 
                                         // Extract the signature and status word
                                         const signature = signatureResponse.slice(0, 64).toString('hex');
