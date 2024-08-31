@@ -259,8 +259,8 @@ function parsePublicKey_fromGpgListPublicKetPacketsVerboseOutput(gpgOutput) {
     const publicKeyPacketRegex = /:public key packet:\r?\n\s+version \d+, algo \d+, created \d+, expires \d+\r?\n\s+pkey\[0\]: [0-9A-F]+ .+\r?\n\s+pkey\[1\]: ([0-9A-F]+)\r?\n\s+keyid: [0-9A-F]+/;
     const match = gpgOutput.match(publicKeyPacketRegex);
 
-    if (match) {
-        const publicKeyHex = match[1];
+    if (match && !!match[1]) {
+        const publicKeyHex = match[1].toLowerCase();
         log(`Public key ${publicKeyHex} extrated from packet match:\n${match[0]}`);
         return publicKeyHex;
     } else {
