@@ -13,15 +13,15 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 
     return new Promise((resolve, reject) => {
         pcsc.on('reader', function(reader) {
-            log('Reader detected:', reader.name);
+            log(`Reader detected: ${reader.name}`);
 
             reader.on('error', function(err) {
-                log('Error:', err.message);
+                log(`Error: ${err.message}`);
                 reject(err);
             });
 
             reader.on('status', function(status) {
-                log('Status:', status);
+                log(`Status: ${status}`);
 
                 // Check if a card is present
                 const changes = reader.state ^ status.state;
@@ -30,12 +30,12 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 
                     reader.connect({ share_mode: reader.SCARD_SHARE_SHARED }, function(err, protocol) {
                         if (err) {
-                            log('Error connecting to card:', err.message);
+                            log(`Error connecting to card: ${err.message}`);
                             reject(err);
                             return;
                         }
 
-                        log('Protocol:', protocol);
+                        log(`Protocol: ${protocol}`);
 
                         // Parameterize the PIN
                         const pinHex = Buffer.from(pin, 'utf8').toString('hex');
@@ -50,7 +50,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const pinData = pinHex;
 
                         const pinApduCommand = pinCLA + pinINS + pinP1 + pinP2 + pinLc + pinData;
-                        log('PIN APDU Command:', pinApduCommand);
+                        log(`PIN APDU Command: ${pinApduCommand}`);
 
                         // Construct the signing APDU command
                         const CLA = '00';
@@ -62,7 +62,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const Le = '00';
 
                         const apduCommand = CLA + INS + P1 + P2 + Lc + Data + Le;
-                        log('APDU Command:', apduCommand);
+                        log(`APDU Command: ${apduCommand}`);
 
                         const apduCommands = [
                             Buffer.from('00A4040006D27600012401', 'hex'),  // Select the OpenPGP application
@@ -78,10 +78,10 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                                     signatureResponse = await new Promise((resolve, reject) => {
                                         reader.transmit(apdu, 256, protocol, function(err, data) {
                                             if (err) {
-                                                log('Error transmitting APDU:', err.message);
+                                                log(`Error transmitting APDU: ${err.message}`);
                                                 reject(err);
                                             } else {
-                                                log('APDU:', apdu.toString('hex'), '-> Response:', data.toString('hex'));
+                                                log(`APDU: ${apdu.toString('hex')} -> Response: ${data.toString('hex')}`);
                                                 resolve(data);
                                             }
                                         });
@@ -90,7 +90,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 
                                 reader.disconnect(reader.SCARD_LEAVE_CARD, function(err) {
                                     if (err) {
-                                        log('Error disconnecting from card:', err.message);
+                                        log(`Error disconnecting from card: ${err.message}`);
                                         reject(err);
                                     } else {
                                         log('Disconnected from card');
@@ -120,7 +120,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
         });
 
         pcsc.on('error', function(err) {
-            log('PCSC error:', err.message);
+            log(`PCSC error: ${err.message}`);
             reject(err);
         });
     });
@@ -162,7 +162,7 @@ const server = http.createServer(async (req, res) => {
             body += chunk.toString();
         });
         req.on('end', async () => {
-            console.log('Request received:', body); // Log the request body
+            console.log(`Request received: ${body}`); // Log the request body
             try {
                 const { hash, pin } = JSON.parse(body);
                 const rawSha512Buffer = Buffer.from(hash, 'hex');
@@ -170,19 +170,19 @@ const server = http.createServer(async (req, res) => {
                 const response = JSON.stringify({ signature });
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(response);
-                console.log('Response sent:', response); // Log the response
+                console.log(`Response sent: ${response}`); // Log the response
             } catch (error) {
                 const errorResponse = JSON.stringify({ error: error.message });
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(errorResponse);
-                console.log('Error response sent:', errorResponse); // Log the error response
+                console.log(`Error response sent: ${errorResponse}`); // Log the error response
             }
         });
     } else {
         const notFoundResponse = JSON.stringify({ error: 'Not Found' });
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(notFoundResponse);
-        console.log('Not Found response sent:', notFoundResponse); // Log the 404 response
+        console.log(`Not Found response sent: ${notFoundResponse}`); // Log the 404 response
     }
 });
 
