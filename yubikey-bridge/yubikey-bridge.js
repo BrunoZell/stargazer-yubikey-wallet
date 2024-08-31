@@ -275,7 +275,7 @@ function parseSignature_fromGpgListSignaturePacketsVerboseOutput(gpgOutput) {
     if (match) {
         const rawSignature = match[1] + match[2];
         log(`Raw signature extracted: ${rawSignature} from packet match:\n${match[0]}`);
-        return rawSignature;
+        return rawSignature.toLowerCase();
     } else {
         throw new Error("Signature packet not found.");
     }
