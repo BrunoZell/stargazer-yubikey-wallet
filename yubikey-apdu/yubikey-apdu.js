@@ -5,6 +5,7 @@ const http = require('http');
 const logFile = fs.createWriteStream('./yubikey-apdu-logfile.txt', { flags: 'a' });
 
 function log(message) {
+    console.log(message);
     logFile.write(`${new Date().toISOString()} - ${message}\n`, () => {
         logFile.end();
     });
@@ -30,7 +31,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                 if (changes & reader.SCARD_STATE_PRESENT && status.state & reader.SCARD_STATE_PRESENT) {
                     log('Card inserted');
 
-                    reader.connect({ share_mode: reader.SCARD_SHARE_SHARED }, function(err, protocol) {
+                    reader.connect({ share_mode: reader.SCARD_SHARE_SHARED }, async function(err, protocol) {
                         if (err) {
                             log(`Error connecting to card: ${err.message}`);
                             reject(err);
@@ -38,7 +39,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         }
 
                         log(`Protocol: ${protocol}`);
-                        const pgpApduCommand ='00A4040006D27600012401';
+                        const pgpApduCommand = '00A4040006D27600012401';
                         log(`PGP APDU Command: ${pgpApduCommand}`);
 
                         // Parameterize the PIN
@@ -47,7 +48,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 
                         // Construct the PIN APDU command
                         const pinCLA = '00';
-                        const pinINS = '20'; // (Instruction byte for VERIFY
+                        const pinINS = '20'; // (Instruction byte for VERIFY)
                         const pinP1 = '00'; // Parameter 1, usually 00 for VERIFY
                         const pinP2 = '81'; // reference control parameter: Must be 81 for SIGN as specified in 7.2.10
                         const pinLc = pinLengthHex;
@@ -68,52 +69,84 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const apduCommand = CLA + INS + P1 + P2 + Lc + Data + Le;
                         log(`SIGN APDU Command: ${apduCommand}`);
 
-                        const apduCommands = [
-                            Buffer.from(pgpApduCommand, 'hex'),  // Select the OpenPGP application
-                            Buffer.from(pinApduCommand, 'hex'),  // Verify the PIN
-                            Buffer.from(apduCommand, 'hex'),  // Perform signing
-                        ];
+                        const successStatusResponse = '9000';
 
-                        // Send APDU commands sequentially
-                        (async function sendCommands() {
-                            try {
-                                let signatureResponse;
-                                for (const apdu of apduCommands) {
-                                    signatureResponse = await new Promise((resolve, reject) => {
-                                        reader.transmit(apdu, 256, protocol, function(err, data) {
-                                            if (err) {
-                                                log(`Error transmitting APDU: ${err.message}`);
-                                                reject(err);
-                                            } else {
-                                                log(`APDU Executed: ${apdu.toString('hex')} -> Response: ${data.toString('hex')}`);
-                                                resolve(data);
-                                            }
-                                        });
-                                    });
-                                }
-
-                                reader.disconnect(reader.SCARD_LEAVE_CARD, function(err) {
+                        try {
+                            // Send the PGP APDU command
+                            let response = await new Promise((resolve, reject) => {
+                                reader.transmit(Buffer.from(pgpApduCommand, 'hex'), 256, protocol, function(err, data) {
                                     if (err) {
-                                        log(`Error disconnecting from card: ${err.message}`);
+                                        log(`Error transmitting PGP APDU: ${err.message}`);
                                         reject(err);
                                     } else {
-                                        log('Disconnected from card with final signature response: ' + signatureResponse.toString('hex'));
-
-                                        // Extract the signature and status word
-                                        const signature = signatureResponse.slice(0, 64).toString('hex');
-                                        const statusWord = signatureResponse.slice(64).toString('hex');
-
-                                        if (statusWord === '9000') {
-                                            resolve(signature);
-                                        } else {
-                                            reject(new Error(`Unexpected status word: ${statusWord}`));
-                                        }
+                                        log(`PGP APDU Executed: ${pgpApduCommand} -> Response: ${data.toString('hex')}`);
+                                        resolve(data);
                                     }
                                 });
-                            } catch (err) {
-                                reject(err);
+                            });
+
+                            // Check the status word of the response
+                            let statusWord = response.slice(-2).toString('hex');
+                            if (statusWord !== successStatusResponse) {
+                                reject(new Error(`Unexpected status word: ${statusWord}`));
+                                return;
                             }
-                        })();
+
+                            // Send the PIN APDU command
+                            response = await new Promise((resolve, reject) => {
+                                reader.transmit(Buffer.from(pinApduCommand, 'hex'), 256, protocol, function(err, data) {
+                                    if (err) {
+                                        log(`Error transmitting PIN APDU: ${err.message}`);
+                                        reject(err);
+                                    } else {
+                                        log(`PIN APDU Executed: ${pinApduCommand} -> Response: ${data.toString('hex')}`);
+                                        resolve(data);
+                                    }
+                                });
+                            });
+
+                            // Check the status word of the response
+                            statusWord = response.slice(-2).toString('hex');
+                            if (statusWord !== successStatusResponse) {
+                                reject(new Error(`Unexpected status word: ${statusWord}`));
+                                return;
+                            }
+
+                            // Send the signing APDU command
+                            response = await new Promise((resolve, reject) => {
+                                reader.transmit(Buffer.from(apduCommand, 'hex'), 256, protocol, function(err, data) {
+                                    if (err) {
+                                        log(`Error transmitting SIGN APDU: ${err.message}`);
+                                        reject(err);
+                                    } else {
+                                        log(`SIGN APDU Executed: ${apduCommand} -> Response: ${data.toString('hex')}`);
+                                        resolve(data);
+                                    }
+                                });
+                            });
+
+                            // Check the status word of the response
+                            statusWord = response.slice(-2).toString('hex');
+                            if (statusWord !== successStatusResponse) {
+                                reject(new Error(`Unexpected status word: ${statusWord}`));
+                                return;
+                            }
+
+                            reader.disconnect(reader.SCARD_LEAVE_CARD, function(err) {
+                                if (err) {
+                                    log(`Error disconnecting from card: ${err.message}`);
+                                    reject(err);
+                                } else {
+                                    log('Disconnected from card with final signature response: ' + response.toString('hex'));
+
+                                    // Extract the signature
+                                    const signature = response.slice(0, 64).toString('hex');
+                                    resolve(signature);
+                                }
+                            });
+                        } catch (err) {
+                            reject(err);
+                        }
                     });
                 }
             });
@@ -190,6 +223,6 @@ const server = http.createServer(async (req, res) => {
     }
 });
 
-server.listen(3000, () => {
-    log('Server is listening on port 3000');
+server.listen(3333, () => {
+    log('Server is listening on port 3333');
 });
