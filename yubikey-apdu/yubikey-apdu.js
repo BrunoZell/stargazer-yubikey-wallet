@@ -2,6 +2,19 @@ const pcsclite = require('pcsclite');
 const fs = require('fs');
 const http = require('http');
 
+const { keyStore } = require('@stardust-collective/dag4-keystore');
+
+// Verification
+const EC = require("elliptic");
+const { ECDSASignature } = require("elliptic");
+const curve = new EC.ec("secp256k1");
+
+async function loadSecp256k1() {
+    return await import("@noble/secp256k1");
+}
+
+
+
 const logFile = fs.createWriteStream('./yubikey-apdu-logfile.txt', { flags: 'a' });
 
 function log(message) {
@@ -35,7 +48,7 @@ function resolveStatusWord(statusWord) {
 async function transmitApdu(reader, apdu, protocol) {
     return new Promise((resolve, reject) => {
         const bufferSize = 1024; // Initial buffer size
-        reader.transmit(apdu, bufferSize, protocol, function(err, data) {
+        reader.transmit(apdu, bufferSize, protocol, function (err, data) {
             if (data) {
                 log(`APDU Request Executed: ${apdu.toString('hex')} -> Response: ${data.toString('hex')}`);
             }
@@ -54,7 +67,7 @@ async function transmitApdu(reader, apdu, protocol) {
                     // Handle the case where more data is available
                     const remainingDataLength = parseInt(statusWord.slice(2), 16);
                     const getResponseApdu = Buffer.from('00C00000' + statusWord.slice(2), 'hex');
-                    reader.transmit(getResponseApdu, remainingDataLength + 2, protocol, function(err, additionalData) {
+                    reader.transmit(getResponseApdu, remainingDataLength + 2, protocol, function (err, additionalData) {
                         if (err) {
                             log(`Error transmitting GET RESPONSE APDU: ${err.message}`);
                             reject(err);
@@ -102,15 +115,15 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
     const pcsc = pcsclite();
 
     return new Promise((resolve, reject) => {
-        pcsc.on('reader', function(reader) {
+        pcsc.on('reader', function (reader) {
             log(`Reader detected: ${reader.name}`);
 
-            reader.on('error', function(err) {
+            reader.on('error', function (err) {
                 log(`Error: ${err.message}`);
                 reject(err);
             });
 
-            reader.on('status', function(status) {
+            reader.on('status', function (status) {
                 log(`Status: ${JSON.stringify(status)}`);
 
                 // Check if a card is present
@@ -118,7 +131,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                 if (changes & reader.SCARD_STATE_PRESENT && status.state & reader.SCARD_STATE_PRESENT) {
                     log('Card inserted');
 
-                    reader.connect({ share_mode: reader.SCARD_SHARE_SHARED }, async function(err, protocol) {
+                    reader.connect({ share_mode: reader.SCARD_SHARE_SHARED }, async function (err, protocol) {
                         if (err) {
                             log(`Error connecting to card: ${err.message}`);
                             reject(err);
@@ -190,7 +203,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                             // Send the signing APDU command
                             const response = await transmitApdu(reader, Buffer.from(apduCommand, 'hex'), protocol);
 
-                            reader.disconnect(reader.SCARD_LEAVE_CARD, function(err) {
+                            reader.disconnect(reader.SCARD_LEAVE_CARD, function (err) {
                                 if (err) {
                                     log(`Error disconnecting from card: ${err.message}`);
                                     reject(err);
@@ -209,12 +222,12 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                 }
             });
 
-            reader.on('end', function() {
+            reader.on('end', function () {
                 log('Reader removed');
             });
         });
 
-        pcsc.on('error', function(err) {
+        pcsc.on('error', function (err) {
             log(`PCSC error: ${err.message}`);
             reject(err);
         });
@@ -222,19 +235,60 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 }
 
 async function main() {
-    const [,, hash, pin] = process.argv;
-    if (!hash || !pin) {
-        console.error('Usage: node yubikey-apdu.js <sha512-hash> <pin>');
-        process.exit(1);
-    }
+    const secp = await loadSecp256k1();
+    const [, , utf8StringToSign, pin] = process.argv;
 
-    const rawSha512Buffer = Buffer.from(hash, 'hex');
+    // if (!hash || !pin) {
+    //     console.error('Usage: node yubikey-apdu.js <sha512-hash> <pin>');
+    //     process.exit(1);
+    // }
 
     try {
+        const sha512Hash = keyStore.sha512(utf8StringToSign);
+        const rawSha512Buffer = Buffer.from(sha512Hash, 'hex');
+
         const { signature, publicKey } = await signDataWithYubikey(rawSha512Buffer, pin);
+
+        const signatureBuffer = Buffer.from(signature, 'hex')
+
+        // Verify signature is a 64 byte buffer
+        if (!Buffer.isBuffer(signatureBuffer) || signatureBuffer.length !== 64) {
+            throw new Error('Invalid signature format. Expected a 64 byte buffer.');
+        }
+
+        let valid1, valid2;
+        try {
+            valid2 = secp.verify(signature, sha512Hash, Buffer.from(publicKey, 'hex'));
+        } catch (error) {
+            console.error(JSON.stringify({ error: error.message }));
+        }
+
+        try {
+            // Import public key
+            var key = curve.keyFromPublic(publicKey, 'hex');
+                    
+            // Split the signature into r and s
+            const r = signature.slice(0, 32);
+            const s = signature.slice(32, 64);
+
+            // Encode r and s into DER format
+            const derSignature = { r, s };
+
+            console.log(derSignature);
+
+            // Verify signature
+            valid1 = key.verify(sha512Hash, derSignature);
+
+            // valid1 = curve.verify(sha512Hash, derSignature, Buffer.from(publicKey, 'hex'));
+        } catch (error) {
+            console.error(JSON.stringify({ error: error.message }));
+        }
+
         console.log(JSON.stringify({
             signature,
-            publicKey
+            publicKey,
+            valid1,
+            valid2
         }, null, 2));
     } catch (error) {
         console.error(JSON.stringify({ error: error.message }));
