@@ -70,6 +70,34 @@ async function transmitApdu(reader, apdu, protocol) {
     });
 }
 
+// Function to process the raw public key response
+function extractPublicKey(publicKeyResponse) {
+    // Verify the response code
+    const responseCode = publicKeyResponse.slice(0, 2).toString('hex');
+    if (responseCode !== '7f49') {
+        throw new Error(`Unexpected response code: ${responseCode}`);
+    }
+
+    // Read the first length (next hex char after the response code)
+    const firstLengthHex = publicKeyResponse.slice(2, 3).toString('hex');
+    const firstLength = parseInt(firstLengthHex, 16);
+
+    // Verify the first two characters after the length are '86' for ECDSA
+    const ecdsaIndicator = publicKeyResponse.slice(3, 4).toString('hex');
+    if (ecdsaIndicator !== '86') {
+        throw new Error(`Unexpected ECDSA indicator: ${ecdsaIndicator}`);
+    }
+
+    // Read the second length (next hex char after '86')
+    const secondLengthHex = publicKeyResponse.slice(4, 5).toString('hex');
+    const secondLength = parseInt(secondLengthHex, 16);
+
+    // Extract the uncompressed public key based on the second length
+    const uncompressedPublicKey = publicKeyResponse.slice(5, 5 + secondLength).toString('hex');
+
+    return uncompressedPublicKey;
+}
+
 async function signDataWithYubikey(rawSha512Buffer, pin) {
     const pcsc = pcsclite();
 
@@ -153,7 +181,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 
                             // Get the public key from the YubiKey
                             const publicKeyResponse = await transmitApdu(reader, Buffer.from(getPublicKeyApdu, 'hex'), protocol);
-                            const publicKey = publicKeyResponse.slice(0, -2).toString('hex');
+                            const publicKey = extractPublicKey(publicKeyResponse);
                             log(`Public Key: ${publicKey}`);
 
                             // Send the PIN APDU command
