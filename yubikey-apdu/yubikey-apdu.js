@@ -29,12 +29,17 @@ function resolveStatusWord(statusWord) {
         '6F00': 'Unknown error'
     };
 
-    return statusMap[statusWord] || `Unexpected status word: ${statusWord}`;
+    return statusMap[statusWord.toUpperCase()] || `Unexpected status word: ${statusWord}`;
 }
 
 async function transmitApdu(reader, apdu, protocol) {
     return new Promise((resolve, reject) => {
-        reader.transmit(apdu, 256, protocol, function(err, data) {
+        const bufferSize = 1024; // Initial buffer size
+        reader.transmit(apdu, bufferSize, protocol, function(err, data) {
+            if (data) {
+                log(`APDU Request Executed: ${apdu.toString('hex')} -> Response: ${data.toString('hex')}`);
+            }
+
             if (err) {
                 log(`Error transmitting APDU: ${err.message}`);
                 reject(err);
@@ -42,8 +47,21 @@ async function transmitApdu(reader, apdu, protocol) {
                 const statusWord = data.slice(-2).toString('hex');
                 const statusMessage = resolveStatusWord(statusWord);
                 if (statusWord === '9000') {
-                    log(`APDU Request: ${apdu.toString('hex')} -> Response: ${data.toString('hex')}`);
                     resolve(data);
+                } else if (statusWord.startsWith('61')) {
+                    // 7.2.6, page 58: https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.pdf
+                    // 61xx means response must be read in multiple parts.
+                    // Handle the case where more data is available
+                    const remainingDataLength = parseInt(statusWord.slice(2), 16);
+                    const getResponseApdu = Buffer.from('00C00000' + statusWord.slice(2), 'hex');
+                    reader.transmit(getResponseApdu, remainingDataLength + 2, protocol, function(err, additionalData) {
+                        if (err) {
+                            log(`Error transmitting GET RESPONSE APDU: ${err.message}`);
+                            reject(err);
+                        } else {
+                            resolve(Buffer.concat([data.slice(0, -2), additionalData]));
+                        }
+                    });
                 } else {
                     reject(new Error(statusMessage));
                 }
@@ -83,7 +101,18 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const pgpApduCommand = '00A4040006D27600012401';
                         log(`PGP APDU Command: ${pgpApduCommand}`);
 
-                        // Parameterize the PIN
+                        // Read key attributes the YubiKey
+                        const getPublicKeyCLA = '00';
+                        const getPublicKeyINS = 'CA'; // GET DATA
+                        const getPublicKeyP1 = '00'; // Application related data
+                        const getPublicKeyP2 = '6E'; // Algorithm attributes signature
+                        const getPublicKeyLc = ''; // No data field
+                        const getPublicKeyLe = '00'; // No expected length
+
+                        const getPublicKeyApdu = getPublicKeyCLA + getPublicKeyINS + getPublicKeyP1 + getPublicKeyP2 + getPublicKeyLc + getPublicKeyLe;
+                        log(`GET PUBLIC KEY APDU Command: ${getPublicKeyApdu}`);
+
+                        // Serialize the PIN parameter
                         const pinHex = Buffer.from(pin, 'utf8').toString('hex');
                         const pinLengthHex = (pin.length).toString(16).padStart(2, '0');
 
@@ -120,6 +149,11 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                             // Send the PGP APDU command
                             await transmitApdu(reader, Buffer.from(pgpApduCommand, 'hex'), protocol);
 
+                            // Get the public key from the YubiKey
+                            const publicKeyResponse = await transmitApdu(reader, Buffer.from(getPublicKeyApdu, 'hex'), protocol);
+                            const publicKey = publicKeyResponse.slice(0, -2).toString('hex');
+                            log(`Public Key: ${publicKey}`);
+
                             // Send the PIN APDU command
                             await transmitApdu(reader, Buffer.from(pinApduCommand, 'hex'), protocol);
 
@@ -135,7 +169,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 
                                     // Extract the signature
                                     const signature = response.slice(0, 64).toString('hex');
-                                    resolve(signature);
+                                    resolve({ signature, publicKey });
                                 }
                             });
                         } catch (err) {
@@ -157,66 +191,61 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
     });
 }
 
-///// As command line tool:
+async function main() {
+    const [,, hash, pin] = process.argv;
+    if (!hash || !pin) {
+        console.error('Usage: node yubikey-apdu.js <sha512-hash> <pin>');
+        process.exit(1);
+    }
 
-// async function main() {
-//     const [,, hash, pin] = process.argv;
-//     if (!hash || !pin) {
-//         console.error('Usage: node yubikey-apdu.js <sha512-hash> <pin>');
-//         process.exit(1);
+    const rawSha512Buffer = Buffer.from(hash, 'hex');
+
+    try {
+        const signature = await signDataWithYubikey(rawSha512Buffer, pin);
+        console.log(JSON.stringify({ signature }));
+    } catch (error) {
+        console.error(JSON.stringify({ error: error.message }));
+    }
+    process.exit(0); // Terminate the process after successful response
+}
+
+main().catch(error => {
+    log(`Unhandled error: ${error.message}`);
+    process.exit(1);
+});
+
+
+// const server = http.createServer(async (req, res) => {
+//     if (req.method === 'POST' && req.url === '/sign') {
+//         let body = '';
+//         req.on('data', chunk => {
+//             body += chunk.toString();
+//         });
+//         req.on('end', async () => {
+//             console.log(`Request received: ${body}`); // Log the request body
+//             try {
+//                 const { hash, pin } = JSON.parse(body);
+//                 const rawSha512Buffer = Buffer.from(hash, 'hex');
+//                 const { signature, publicKey } = await signDataWithYubikey(rawSha512Buffer, pin);
+//                 const response = JSON.stringify({ signature, publicKey });
+//                 res.writeHead(200, { 'Content-Type': 'application/json' });
+//                 res.end(response);
+//                 console.log(`Response sent: ${response}`); // Log the response
+//             } catch (error) {
+//                 const errorResponse = JSON.stringify({ error: error.message });
+//                 res.writeHead(500, { 'Content-Type': 'application/json' });
+//                 res.end(errorResponse);
+//                 console.log(`Error response sent: ${errorResponse}`); // Log the error response
+//             }
+//         });
+//     } else {
+//         const notFoundResponse = JSON.stringify({ error: 'Not Found' });
+//         res.writeHead(404, { 'Content-Type': 'application/json' });
+//         res.end(notFoundResponse);
+//         console.log(`Not Found response sent: ${notFoundResponse}`); // Log the 404 response
 //     }
-
-//     const rawSha512Buffer = Buffer.from(hash, 'hex');
-
-//     try {
-//         const signature = await signDataWithYubikey(rawSha512Buffer, pin);
-//         console.log(JSON.stringify({ signature }));
-//     } catch (error) {
-//         console.error(JSON.stringify({ error: error.message }));
-//     }
-//     process.exit(0); // Terminate the process after successful response
-// }
-
-// main().catch(error => {
-//     log(`Unhandled error: ${error.message}`);
-//     process.exit(1);
 // });
 
-
-///// As http server:
-
-
-const server = http.createServer(async (req, res) => {
-    if (req.method === 'POST' && req.url === '/sign') {
-        let body = '';
-        req.on('data', chunk => {
-            body += chunk.toString();
-        });
-        req.on('end', async () => {
-            console.log(`Request received: ${body}`); // Log the request body
-            try {
-                const { hash, pin } = JSON.parse(body);
-                const rawSha512Buffer = Buffer.from(hash, 'hex');
-                const signature = await signDataWithYubikey(rawSha512Buffer, pin);
-                const response = JSON.stringify({ signature });
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(response);
-                console.log(`Response sent: ${response}`); // Log the response
-            } catch (error) {
-                const errorResponse = JSON.stringify({ error: error.message });
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(errorResponse);
-                console.log(`Error response sent: ${errorResponse}`); // Log the error response
-            }
-        });
-    } else {
-        const notFoundResponse = JSON.stringify({ error: 'Not Found' });
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(notFoundResponse);
-        console.log(`Not Found response sent: ${notFoundResponse}`); // Log the 404 response
-    }
-});
-
-server.listen(3333, () => {
-    log('Server is listening on port 3333');
-});
+// server.listen(3333, () => {
+//     log('Server is listening on port 3333');
+// });
