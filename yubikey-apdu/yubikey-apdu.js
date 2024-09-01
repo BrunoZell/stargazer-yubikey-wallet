@@ -42,6 +42,7 @@ async function transmitApdu(reader, apdu, protocol) {
                 const statusWord = data.slice(-2).toString('hex');
                 const statusMessage = resolveStatusWord(statusWord);
                 if (statusWord === '9000') {
+                    log(`APDU Request: ${apdu.toString('hex')} -> Response: ${data.toString('hex')}`);
                     resolve(data);
                 } else {
                     reject(new Error(statusMessage));
@@ -96,6 +97,12 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 
                         const pinApduCommand = pinCLA + pinINS + pinP1 + pinP2 + pinLc + pinData;
                         log(`PIN APDU Command: ${pinApduCommand}`);
+
+                        // Ensure the input rawSha512Buffer is of the expected 64-byte length
+                        if (rawSha512Buffer.length !== 64) {
+                            reject(new Error('Invalid SHA-512 hash length. Expected 64 bytes.'));
+                            return;
+                        }
 
                         // Construct the signing APDU command
                         const CLA = '00';
