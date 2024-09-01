@@ -11,6 +11,46 @@ function log(message) {
     });
 }
 
+function resolveStatusWord(statusWord) {
+    const statusMap = {
+        '9000': 'Success',
+        '6700': 'Wrong length',
+        '6982': 'Security status not satisfied',
+        '6985': 'Conditions of use not satisfied',
+        '6A80': 'Incorrect parameters in data field',
+        '6A81': 'Function not supported',
+        '6A82': 'File not found',
+        '6A83': 'Record not found',
+        '6A84': 'Not enough memory space',
+        '6A86': 'Incorrect parameters in P1-P2',
+        '6B00': 'Wrong parameters P1-P2',
+        '6D00': 'Instruction code not supported',
+        '6E00': 'Class not supported',
+        '6F00': 'Unknown error'
+    };
+
+    return statusMap[statusWord] || `Unexpected status word: ${statusWord}`;
+}
+
+async function transmitApdu(reader, apdu, protocol) {
+    return new Promise((resolve, reject) => {
+        reader.transmit(apdu, 256, protocol, function(err, data) {
+            if (err) {
+                log(`Error transmitting APDU: ${err.message}`);
+                reject(err);
+            } else {
+                const statusWord = data.slice(-2).toString('hex');
+                const statusMessage = resolveStatusWord(statusWord);
+                if (statusWord === '9000') {
+                    resolve(data);
+                } else {
+                    reject(new Error(statusMessage));
+                }
+            }
+        });
+    });
+}
+
 async function signDataWithYubikey(rawSha512Buffer, pin) {
     const pcsc = pcsclite();
 
@@ -69,68 +109,15 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const apduCommand = CLA + INS + P1 + P2 + Lc + Data + Le;
                         log(`SIGN APDU Command: ${apduCommand}`);
 
-                        const successStatusResponse = '9000';
-
                         try {
                             // Send the PGP APDU command
-                            let response = await new Promise((resolve, reject) => {
-                                reader.transmit(Buffer.from(pgpApduCommand, 'hex'), 256, protocol, function(err, data) {
-                                    if (err) {
-                                        log(`Error transmitting PGP APDU: ${err.message}`);
-                                        reject(err);
-                                    } else {
-                                        log(`PGP APDU Executed: ${pgpApduCommand} -> Response: ${data.toString('hex')}`);
-                                        resolve(data);
-                                    }
-                                });
-                            });
-
-                            // Check the status word of the response
-                            let statusWord = response.slice(-2).toString('hex');
-                            if (statusWord !== successStatusResponse) {
-                                reject(new Error(`Unexpected status word: ${statusWord}`));
-                                return;
-                            }
+                            await transmitApdu(reader, Buffer.from(pgpApduCommand, 'hex'), protocol);
 
                             // Send the PIN APDU command
-                            response = await new Promise((resolve, reject) => {
-                                reader.transmit(Buffer.from(pinApduCommand, 'hex'), 256, protocol, function(err, data) {
-                                    if (err) {
-                                        log(`Error transmitting PIN APDU: ${err.message}`);
-                                        reject(err);
-                                    } else {
-                                        log(`PIN APDU Executed: ${pinApduCommand} -> Response: ${data.toString('hex')}`);
-                                        resolve(data);
-                                    }
-                                });
-                            });
-
-                            // Check the status word of the response
-                            statusWord = response.slice(-2).toString('hex');
-                            if (statusWord !== successStatusResponse) {
-                                reject(new Error(`Unexpected status word: ${statusWord}`));
-                                return;
-                            }
+                            await transmitApdu(reader, Buffer.from(pinApduCommand, 'hex'), protocol);
 
                             // Send the signing APDU command
-                            response = await new Promise((resolve, reject) => {
-                                reader.transmit(Buffer.from(apduCommand, 'hex'), 256, protocol, function(err, data) {
-                                    if (err) {
-                                        log(`Error transmitting SIGN APDU: ${err.message}`);
-                                        reject(err);
-                                    } else {
-                                        log(`SIGN APDU Executed: ${apduCommand} -> Response: ${data.toString('hex')}`);
-                                        resolve(data);
-                                    }
-                                });
-                            });
-
-                            // Check the status word of the response
-                            statusWord = response.slice(-2).toString('hex');
-                            if (statusWord !== successStatusResponse) {
-                                reject(new Error(`Unexpected status word: ${statusWord}`));
-                                return;
-                            }
+                            const response = await transmitApdu(reader, Buffer.from(apduCommand, 'hex'), protocol);
 
                             reader.disconnect(reader.SCARD_LEAVE_CARD, function(err) {
                                 if (err) {
