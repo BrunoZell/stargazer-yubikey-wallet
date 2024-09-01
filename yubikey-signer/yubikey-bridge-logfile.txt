@@ -1,3 +1,0 @@
-2024-08-30T12:02:43.135Z - Sending message: {"error":"Timeout waiting for message"}
-2024-08-30T12:02:43.139Z - Successfully sent message: {"error":"Timeout waiting for message"}
-2024-08-30T12:02:43.139Z - Error handling message: Timeout waiting for message
