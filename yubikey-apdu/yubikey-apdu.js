@@ -231,8 +231,11 @@ async function main() {
     const rawSha512Buffer = Buffer.from(hash, 'hex');
 
     try {
-        const signature = await signDataWithYubikey(rawSha512Buffer, pin);
-        console.log(JSON.stringify({ signature }));
+        const { signature, publicKey } = await signDataWithYubikey(rawSha512Buffer, pin);
+        console.log(JSON.stringify({
+            signature,
+            publicKey
+        }, null, 2));
     } catch (error) {
         console.error(JSON.stringify({ error: error.message }));
     }
