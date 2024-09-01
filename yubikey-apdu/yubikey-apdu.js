@@ -101,15 +101,17 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const pgpApduCommand = '00A4040006D27600012401';
                         log(`PGP APDU Command: ${pgpApduCommand}`);
 
-                        // Read key attributes the YubiKey
+                        // Get the public key from the YubiKey
+                        // Reference page 48: https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.pdf
                         const getPublicKeyCLA = '00';
-                        const getPublicKeyINS = 'CA'; // GET DATA
-                        const getPublicKeyP1 = '00'; // Application related data
-                        const getPublicKeyP2 = '6E'; // Algorithm attributes signature
-                        const getPublicKeyLc = ''; // No data field
-                        const getPublicKeyLe = '00'; // No expected length
+                        const getPublicKeyINS = '47'; // GENERATE ASYMMETRIC KEY PAIR
+                        const getPublicKeyP1 = '81'; // Reading of actual public key
+                        const getPublicKeyP2 = '00';
+                        const getPublicKeyLc = '000002';
+                        const getPublicKeyLe = 'B600'; // Signature key
+                        const getPublicKeyEm = '0000';
 
-                        const getPublicKeyApdu = getPublicKeyCLA + getPublicKeyINS + getPublicKeyP1 + getPublicKeyP2 + getPublicKeyLc + getPublicKeyLe;
+                        const getPublicKeyApdu = getPublicKeyCLA + getPublicKeyINS + getPublicKeyP1 + getPublicKeyP2 + getPublicKeyLc + getPublicKeyLe + getPublicKeyEm;
                         log(`GET PUBLIC KEY APDU Command: ${getPublicKeyApdu}`);
 
                         // Serialize the PIN parameter
