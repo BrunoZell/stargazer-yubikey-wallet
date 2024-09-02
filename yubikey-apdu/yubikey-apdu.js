@@ -185,8 +185,8 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                         const Data = rawSha512Buffer.toString('hex');
                         const Le = '00';
 
-                        const apduCommand = CLA + INS + P1 + P2 + Lc + Data + Le;
-                        log(`SIGN APDU Command: ${apduCommand}`);
+                        const signApduCommand = CLA + INS + P1 + P2 + Lc + Data + Le;
+                        log(`SIGN APDU Command: ${signApduCommand}`);
 
                         try {
                             // Send the PGP APDU command
@@ -201,17 +201,17 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
                             await transmitApdu(reader, Buffer.from(pinApduCommand, 'hex'), protocol);
 
                             // Send the signing APDU command
-                            const response = await transmitApdu(reader, Buffer.from(apduCommand, 'hex'), protocol);
+                            const signResponse = await transmitApdu(reader, Buffer.from(signApduCommand, 'hex'), protocol);
 
                             reader.disconnect(reader.SCARD_LEAVE_CARD, function (err) {
                                 if (err) {
                                     log(`Error disconnecting from card: ${err.message}`);
                                     reject(err);
                                 } else {
-                                    log('Disconnected from card with final signature response: ' + response.toString('hex'));
+                                    log('Disconnected from card with final signature response: ' + signResponse.toString('hex'));
 
                                     // Extract the signature
-                                    const signature = response.slice(0, 64).toString('hex');
+                                    const signature = signResponse.slice(0, 64).toString('hex');
                                     resolve({ signature, publicKey });
                                 }
                             });
@@ -244,8 +244,10 @@ async function main() {
     // }
 
     try {
-        const sha512Hash = keyStore.sha512(utf8StringToSign);
-        const rawSha512Buffer = Buffer.from(sha512Hash, 'hex');
+        const utf8BufferToSign = Buffer.from(utf8StringToSign, 'utf8');
+        const sha512HashHex = keyStore.sha512(utf8BufferToSign);
+        // const sha512Hash2 = crypto.createHash('sha256').update(utf8StringToSign).digest();
+        const rawSha512Buffer = Buffer.from(sha512HashHex, 'hex');
 
         const { signature, publicKey } = await signDataWithYubikey(rawSha512Buffer, pin);
 
@@ -256,9 +258,9 @@ async function main() {
             throw new Error('Invalid signature format. Expected a 64 byte buffer.');
         }
 
-        let valid1, valid2;
+        let valid1, valid2, valid3;
         try {
-            valid2 = secp.verify(signature, sha512Hash, Buffer.from(publicKey, 'hex'));
+            valid2 = secp.verify(signature, sha512HashHex, Buffer.from(publicKey, 'hex'));
         } catch (error) {
             console.error(JSON.stringify({ error: error.message }));
         }
@@ -266,7 +268,7 @@ async function main() {
         try {
             // Import public key
             var key = curve.keyFromPublic(publicKey, 'hex');
-                    
+
             // Split the signature into r and s
             const r = signature.slice(0, 32);
             const s = signature.slice(32, 64);
@@ -277,7 +279,15 @@ async function main() {
             console.log(derSignature);
 
             // Verify signature
-            valid1 = key.verify(sha512Hash, derSignature);
+            valid1 = key.verify(sha512HashHex, derSignature);
+
+            // Encode r and s into DER format
+            const derSignature3 = { r: s, s: r };
+
+            console.log(derSignature3);
+
+            // Verify signature
+            valid3 = key.verify(sha512HashHex, derSignature3);
 
             // valid1 = curve.verify(sha512Hash, derSignature, Buffer.from(publicKey, 'hex'));
         } catch (error) {
@@ -285,10 +295,13 @@ async function main() {
         }
 
         console.log(JSON.stringify({
+            input: utf8BufferToSign.toString('hex'),
+            digest: sha512HashHex.toString('hex'),
             signature,
             publicKey,
             valid1,
-            valid2
+            valid2,
+            valid3
         }, null, 2));
     } catch (error) {
         console.error(JSON.stringify({ error: error.message }));
