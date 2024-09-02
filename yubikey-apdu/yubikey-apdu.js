@@ -29,6 +29,7 @@ function resolveStatusWord(statusWord) {
         '9000': 'Success',
         '6700': 'Wrong length',
         '6982': 'Security status not satisfied',
+        '6983': 'Authentication method blocked. Please check your PIN.',
         '6985': 'Conditions of use not satisfied',
         '6A80': 'Incorrect parameters in data field',
         '6A81': 'Function not supported',
