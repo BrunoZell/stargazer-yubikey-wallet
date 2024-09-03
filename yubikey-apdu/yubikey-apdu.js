@@ -366,7 +366,7 @@ const server = http.createServer(async (req, res) => {
                 ]).toString('hex');
 
                 const response = JSON.stringify({
-                    publicKey,
+                    publicKey: publicKey,
                     rawSignature: signature,
                     asnDerSignature: derSignatureAsn
                 });

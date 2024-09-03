@@ -90,7 +90,7 @@ async function signDataWithYubikey(sha512HashHexString, pin) {
 
     const options = {
         hostname: 'localhost',
-        port: 3000,
+        port: 3333,
         path: '/sign',
         method: 'POST',
         headers: {
@@ -178,21 +178,30 @@ async function handleMessage() {
             }
         } else if (message.command === 'signHash') {
             log(`Processing signHash message`);
-            const { publicKey, fingerprint, hash /*, pin*/ } = message;
+            const { expectedUncompressedPublicKey, sha512DigestToSign, yubikeyPin } = message;
             try {
-                log(`Signing hash ${hash} with fingerprint ${fingerprint} and public key ${publicKey}`);
+                log(`Signing hash digest ${hash} expecting public key ${expectedUncompressedPublicKey}`);
 
                 // Sign the binary data using Yubikey with APDU API
-                const pin = "123456";
-                const signatureResponse = await signDataWithYubikey(hash, pin);
-                log(`Signature extracted from APDU API: ${signatureResponse}`);
+                const apduApiResponse = await signDataWithYubikey(sha512DigestToSign, yubikeyPin);
+                log(`Response from APDU API: ${apduApiResponse}`);
+
+                if (apduApiResponse.publicKey !== expectedUncompressedPublicKey) {
+                    log(`Public key does not match: Used ${apduApiResponse.publicKey} on Yubikey !== expected ${expectedUncompressedPublicKey}`);
+                } else {
+                    log(`Public key matches: ${expectedUncompressedPublicKey}`);
+                }
 
                 // Sign the binary data using Yubikey with APDU command line
                 // const pin = "123456";
                 // const signatureResponse = execSync('yubikey-apdu ' + hash + ' ' + pin, { encoding: 'utf8' });
                 // log(`Signature extracted from APDU IPC: ${signatureResponse}`);
 
-                sendMessage({ signature: signatureResponse.signature });
+                sendMessage({
+                    publicKey: apduApiResponse.publicKey,
+                    signature: apduApiResponse.signature,
+                    asnDerSignature: apduApiResponse.asnDerSignature
+                });
             } catch (error) {
                 log(`Yubikey APDU error: ${error.message}`);
                 sendMessage({ error: error.message });
