@@ -178,13 +178,14 @@ async function handleMessage() {
             }
         } else if (message.command === 'signHash') {
             log(`Processing signHash message`);
-            const { expectedUncompressedPublicKey, sha512DigestToSign, yubikeyPin } = message;
             try {
-                log(`Signing hash digest ${hash} expecting public key ${expectedUncompressedPublicKey}`);
+                const { expectedUncompressedPublicKey, sha512DigestToSign, yubikeyPin } = message;
+
+                log(`Signing hash digest ${sha512DigestToSign} expecting public key ${expectedUncompressedPublicKey}`);
 
                 // Sign the binary data using Yubikey with APDU API
                 const apduApiResponse = await signDataWithYubikey(sha512DigestToSign, yubikeyPin);
-                log(`Response from APDU API: ${apduApiResponse}`);
+                log(`Response from APDU API: ${JSON.stringify(apduApiResponse)}`);
 
                 if (apduApiResponse.publicKey !== expectedUncompressedPublicKey) {
                     log(`Public key does not match: Used ${apduApiResponse.publicKey} on Yubikey !== expected ${expectedUncompressedPublicKey}`);
@@ -193,14 +194,14 @@ async function handleMessage() {
                 }
 
                 // Sign the binary data using Yubikey with APDU command line
-                // const pin = "123456";
-                // const signatureResponse = execSync('yubikey-apdu ' + hash + ' ' + pin, { encoding: 'utf8' });
+                // const signatureResponse = execSync('yubikey-apdu ' + sha512DigestToSign + ' ' + yubikeyPin, { encoding: 'utf8' });
                 // log(`Signature extracted from APDU IPC: ${signatureResponse}`);
 
                 sendMessage({
                     publicKey: apduApiResponse.publicKey,
-                    signature: apduApiResponse.signature,
-                    asnDerSignature: apduApiResponse.asnDerSignature
+                    digestSigned: apduApiResponse.digestSigned,
+                    signatureRaw: apduApiResponse.signatureRaw,
+                    signatureAsnDer: apduApiResponse.signatureAsnDer
                 });
             } catch (error) {
                 log(`Yubikey APDU error: ${error.message}`);

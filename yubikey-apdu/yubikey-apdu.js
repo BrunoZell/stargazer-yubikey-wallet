@@ -367,8 +367,9 @@ const server = http.createServer(async (req, res) => {
 
                 const response = JSON.stringify({
                     publicKey: publicKey,
-                    rawSignature: signature,
-                    asnDerSignature: derSignatureAsn
+                    digestSigned: hash,
+                    signatureRaw: signature,
+                    signatureAsnDer: derSignatureAsn
                 });
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
