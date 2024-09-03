@@ -51,24 +51,26 @@ This document provides an overview of the APDU (Application Protocol Data Unit) 
 - **Data:** `<Data>` (SHA-512 hash in hex)
 - **Le:** `00`
 
-## Usage
+## Usage as CLI
+
+_(this is commented out in `yubikey-apdu.js`)._
 
 To use the script, run the following command:
 
 ```sh
-node yubikey-apdu.js <sha512-hash> <pin>
+node yubikey-apdu.js <utf8-string> <pin>
 ```
 
-- `<sha512-hash>`: The SHA-512 hash to be signed, in hex format.
+- `<utf8-string>`: The UTF-8 encoded string to be signed.
 - `<pin>`: The PIN for the YubiKey.
 
 ## Example
 
 ```sh
-node yubikey-apdu.js 9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043 123456
+node yubikey-apdu.js "hello" 123456
 ```
 
-This command will sign the provided SHA-512 hash using the YubiKey and the provided PIN.
+This command will SHA512 the provided UTF8 text and sign the hash digest using a connected YubiKey and the provided PIN.
 
 ## Logging
 
