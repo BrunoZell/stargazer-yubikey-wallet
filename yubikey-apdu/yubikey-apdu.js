@@ -260,9 +260,26 @@ async function main() {
             throw new Error('Invalid signature format. Expected a 64 byte buffer.');
         }
 
+        // Split the signature into r and s
+        const r = new BN(signatureBuffer.slice(0, 32), 16, 'be');
+        const s = new BN(signatureBuffer.slice(32, 64), 16, 'be');
+
+        // Encode r and s into DER format
+        const derSignatureBn = { r, s };
+
+        const derSignatureBigint = {
+            r: BigInt(r.toString(10)),
+            s: BigInt(s.toString(10))
+        };
+
+        console.log(derSignatureBn);
+        console.log(derSignatureBigint);
+
+
         let valid1, valid2, valid3;
         try {
-            valid2 = secp.verify(signature, sha512HashHex, Buffer.from(publicKey, 'hex'));
+            valid2 = secp.verify(derSignatureBigint, sha512HashHex, Buffer.from(publicKey, 'hex'), { lowS: false });
+            valid3 = secp.verify(signature, sha512HashHex, Buffer.from(publicKey, 'hex'), { lowS: false });
         } catch (error) {
             console.error(JSON.stringify({ error: error.message }));
         }
@@ -271,17 +288,8 @@ async function main() {
             // Import public key
             var key = curve.keyFromPublic(publicKey, 'hex');
 
-            // Split the signature into r and s
-            const r = new BN(signatureBuffer.slice(0, 32), 16, 'be');
-            const s = new BN(signatureBuffer.slice(32, 64), 16, 'be');
-
-            // Encode r and s into DER format
-            const derSignature = { r, s };
-
-            console.log(derSignature);
-
             // Verify signature
-            valid1 = key.verify(sha512HashHex, derSignature);
+            valid1 = key.verify(sha512HashHex, derSignatureBn);
         } catch (error) {
             console.error(JSON.stringify({ error: error.message }));
         }
