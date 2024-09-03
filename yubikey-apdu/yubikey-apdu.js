@@ -236,116 +236,159 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
     });
 }
 
-async function main() {
-    const secp = await loadSecp256k1();
-    const [, , utf8StringToSign, pin] = process.argv;
+// async function main() {
+//     const secp = await loadSecp256k1();
+//     const [, , utf8StringToSign, pin] = process.argv;
 
-    // if (!hash || !pin) {
-    //     console.error('Usage: node yubikey-apdu.js <sha512-hash> <pin>');
-    //     process.exit(1);
-    // }
+//     if (!utf8StringToSign || !pin) {
+//         console.error('Usage: node yubikey-apdu.js <utf8-string> <pin>');
+//         process.exit(1);
+//     }
 
-    try {
-        const utf8BufferToSign = Buffer.from(utf8StringToSign, 'utf8');
-        const sha512HashHex = keyStore.sha512(utf8BufferToSign);
-        // const sha512Hash2 = crypto.createHash('sha256').update(utf8StringToSign).digest();
-        const rawSha512Buffer = Buffer.from(sha512HashHex, 'hex');
+//     try {
+//         const utf8BufferToSign = Buffer.from(utf8StringToSign, 'utf8');
+//         const sha512HashHex = keyStore.sha512(utf8BufferToSign);
+//         // const sha512Hash2 = crypto.createHash('sha256').update(utf8StringToSign).digest();
+//         const rawSha512Buffer = Buffer.from(sha512HashHex, 'hex');
 
-        const { signature, publicKey } = await signDataWithYubikey(rawSha512Buffer, pin);
+//         const { signature, publicKey } = await signDataWithYubikey(rawSha512Buffer, pin);
 
-        const signatureBuffer = Buffer.from(signature, 'hex')
+//         const signatureBuffer = Buffer.from(signature, 'hex')
 
-        // Verify signature is a 64 byte buffer
-        if (!Buffer.isBuffer(signatureBuffer) || signatureBuffer.length !== 64) {
-            throw new Error('Invalid signature format. Expected a 64 byte buffer.');
-        }
+//         // Verify signature is a 64 byte buffer
+//         if (!Buffer.isBuffer(signatureBuffer) || signatureBuffer.length !== 64) {
+//             throw new Error('Invalid signature format. Expected a 64 byte buffer.');
+//         }
 
-        // Split the signature into r and s
-        const r = new BN(signatureBuffer.slice(0, 32), 16, 'be');
-        const s = new BN(signatureBuffer.slice(32, 64), 16, 'be');
+//         // Split the signature into r and s
+//         const r = new BN(signatureBuffer.slice(0, 32), 16, 'be');
+//         const s = new BN(signatureBuffer.slice(32, 64), 16, 'be');
 
-        // Encode r and s into DER format
-        const derSignatureBn = { r, s };
+//         // Encode r and s into DER format
+//         const derSignatureBn = { r, s };
 
-        const derSignatureBigint = {
-            r: BigInt(r.toString(10)),
-            s: BigInt(s.toString(10))
-        };
+//         const derSignatureBigint = {
+//             r: BigInt(r.toString(10)),
+//             s: BigInt(s.toString(10))
+//         };
 
-        console.log(derSignatureBn);
-        console.log(derSignatureBigint);
+//         // Encode r and s into ASN.1 DER format
+//         const derSignatureAsn = Buffer.concat([
+//             Buffer.from([0x30]), // SEQUENCE tag
+//             Buffer.from([0x44]), // Length of the sequence (0x44 = 68 bytes)
+//             Buffer.from([0x02]), // INTEGER tag
+//             Buffer.from([0x20]), // Length of r (0x20 = 32 bytes)
+//             r.toArrayLike(Buffer, 'be', 32), // r value
+//             Buffer.from([0x02]), // INTEGER tag
+//             Buffer.from([0x20]), // Length of s (0x20 = 32 bytes)
+//             s.toArrayLike(Buffer, 'be', 32)  // s value
+//         ]).toString('hex');
+
+//         console.log(derSignatureBn);
+//         console.log(derSignatureBigint);
+//         console.log(`ASN.1 DER Encoded Signature: ${derSignatureAsn}`);
 
 
-        let valid1, valid2, valid3;
-        try {
-            valid2 = secp.verify(derSignatureBigint, sha512HashHex, Buffer.from(publicKey, 'hex'), { lowS: false });
-            valid3 = secp.verify(signature, sha512HashHex, Buffer.from(publicKey, 'hex'), { lowS: false });
-        } catch (error) {
-            console.error(JSON.stringify({ error: error.message }));
-        }
+//         let valid1, valid2, valid3;
+//         try {
+//             valid2 = secp.verify(derSignatureBigint, sha512HashHex, Buffer.from(publicKey, 'hex'), { lowS: false });
+//             valid3 = secp.verify(signature, sha512HashHex, Buffer.from(publicKey, 'hex'), { lowS: false });
+//         } catch (error) {
+//             console.error(JSON.stringify({ error: error.message }));
+//         }
 
-        try {
-            // Import public key
-            var key = curve.keyFromPublic(publicKey, 'hex');
+//         try {
+//             // Import public key
+//             var key = curve.keyFromPublic(publicKey, 'hex');
 
-            // Verify signature
-            valid1 = key.verify(sha512HashHex, derSignatureBn);
-        } catch (error) {
-            console.error(JSON.stringify({ error: error.message }));
-        }
+//             // Verify signature
+//             valid1 = key.verify(sha512HashHex, derSignatureBn);
+//         } catch (error) {
+//             console.error(JSON.stringify({ error: error.message }));
+//         }
 
-        console.log(JSON.stringify({
-            input: utf8BufferToSign.toString('hex'),
-            digest: sha512HashHex.toString('hex'),
-            signature,
-            publicKey,
-            valid1,
-            valid2,
-            valid3
-        }, null, 2));
-    } catch (error) {
-        console.error(JSON.stringify({ error: error.message }));
+//         console.log(JSON.stringify({
+//             input: utf8BufferToSign.toString('hex'),
+//             digest: sha512HashHex.toString('hex'),
+//             rawSignature: signature,
+//             asnDerSignature: derSignatureAsn,
+//             publicKey,
+//             valid1,
+//             valid2,
+//             valid3
+//         }, null, 2));
+//     } catch (error) {
+//         console.error(JSON.stringify({ error: error.message }));
+//     }
+//     process.exit(0); // Terminate the process after successful response
+// }
+
+// main().catch(error => {
+//     log(`Unhandled error: ${error.message}`);
+//     process.exit(1);
+// });
+
+
+const server = http.createServer(async (req, res) => {
+    if (req.method === 'POST' && req.url === '/sign') {
+        let body = '';
+        req.on('data', chunk => {
+            body += chunk.toString();
+        });
+        req.on('end', async () => {
+            console.log(`Request received: ${body}`); // Log the request body
+            try {
+                const { hash, pin } = JSON.parse(body);
+                const rawSha512Buffer = Buffer.from(hash, 'hex');
+                const { signature, publicKey } = await signDataWithYubikey(rawSha512Buffer, pin);
+
+                const signatureBuffer = Buffer.from(signature, 'hex')
+
+                // Verify signature is a 64 byte buffer
+                if (!Buffer.isBuffer(signatureBuffer) || signatureBuffer.length !== 64) {
+                    throw new Error('Invalid signature format. Expected a 64 byte buffer.');
+                }
+        
+                // Split the signature into r and s
+                const r = new BN(signatureBuffer.slice(0, 32), 16, 'be');
+                const s = new BN(signatureBuffer.slice(32, 64), 16, 'be');
+
+                // Encode r and s into ASN.1 DER format
+                const derSignatureAsn = Buffer.concat([
+                    Buffer.from([0x30]), // SEQUENCE tag
+                    Buffer.from([0x44]), // Length of the sequence (0x44 = 68 bytes)
+                    Buffer.from([0x02]), // INTEGER tag
+                    Buffer.from([0x20]), // Length of r (0x20 = 32 bytes)
+                    r.toArrayLike(Buffer, 'be', 32), // r value
+                    Buffer.from([0x02]), // INTEGER tag
+                    Buffer.from([0x20]), // Length of s (0x20 = 32 bytes)
+                    s.toArrayLike(Buffer, 'be', 32)  // s value
+                ]).toString('hex');
+
+                const response = JSON.stringify({
+                    publicKey,
+                    rawSignature: signature,
+                    asnDerSignature: derSignatureAsn
+                });
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(response);
+                console.log(`Response sent: ${response}`); // Log the response
+            } catch (error) {
+                const errorResponse = JSON.stringify({ error: error.message });
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(errorResponse);
+                console.log(`Error response sent: ${errorResponse}`); // Log the error response
+            }
+        });
+    } else {
+        const notFoundResponse = JSON.stringify({ error: 'Not Found' });
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(notFoundResponse);
+        console.log(`Not Found response sent: ${notFoundResponse}`); // Log the 404 response
     }
-    process.exit(0); // Terminate the process after successful response
-}
-
-main().catch(error => {
-    log(`Unhandled error: ${error.message}`);
-    process.exit(1);
 });
 
-
-// const server = http.createServer(async (req, res) => {
-//     if (req.method === 'POST' && req.url === '/sign') {
-//         let body = '';
-//         req.on('data', chunk => {
-//             body += chunk.toString();
-//         });
-//         req.on('end', async () => {
-//             console.log(`Request received: ${body}`); // Log the request body
-//             try {
-//                 const { hash, pin } = JSON.parse(body);
-//                 const rawSha512Buffer = Buffer.from(hash, 'hex');
-//                 const { signature, publicKey } = await signDataWithYubikey(rawSha512Buffer, pin);
-//                 const response = JSON.stringify({ signature, publicKey });
-//                 res.writeHead(200, { 'Content-Type': 'application/json' });
-//                 res.end(response);
-//                 console.log(`Response sent: ${response}`); // Log the response
-//             } catch (error) {
-//                 const errorResponse = JSON.stringify({ error: error.message });
-//                 res.writeHead(500, { 'Content-Type': 'application/json' });
-//                 res.end(errorResponse);
-//                 console.log(`Error response sent: ${errorResponse}`); // Log the error response
-//             }
-//         });
-//     } else {
-//         const notFoundResponse = JSON.stringify({ error: 'Not Found' });
-//         res.writeHead(404, { 'Content-Type': 'application/json' });
-//         res.end(notFoundResponse);
-//         console.log(`Not Found response sent: ${notFoundResponse}`); // Log the 404 response
-//     }
-// });
-
-// server.listen(3333, () => {
-//     log('Server is listening on port 3333');
-// });
+server.listen(3333, () => {
+    log('Server is listening on port 3333');
+});
