@@ -1,6 +1,7 @@
 const pcsclite = require('pcsclite');
 const fs = require('fs');
 const http = require('http');
+const BN = require("bn.js");
 
 const { keyStore } = require('@stardust-collective/dag4-keystore');
 
@@ -29,7 +30,7 @@ function resolveStatusWord(statusWord) {
         '9000': 'Success',
         '6700': 'Wrong length',
         '6982': 'Security status not satisfied',
-        '6983': 'Authentication method blocked. Please check your PIN.',
+        '6983': 'Wrong PIN entered or Yubikey locked. Please check your PIN and your keys PIN retry counter.',
         '6985': 'Conditions of use not satisfied',
         '6A80': 'Incorrect parameters in data field',
         '6A81': 'Function not supported',
@@ -158,7 +159,7 @@ async function signDataWithYubikey(rawSha512Buffer, pin) {
 
                         // Serialize the PIN parameter
                         const pinHex = Buffer.from(pin, 'utf8').toString('hex');
-                        const pinLengthHex = (pin.length).toString(16).padStart(2, '0');
+                        const pinLengthHex = Buffer.from(pin, 'utf8').byteLength.toString(16).padStart(2, '0');
 
                         // Construct the PIN APDU command
                         const pinCLA = '00';
@@ -271,8 +272,8 @@ async function main() {
             var key = curve.keyFromPublic(publicKey, 'hex');
 
             // Split the signature into r and s
-            const r = signature.slice(0, 32);
-            const s = signature.slice(32, 64);
+            const r = new BN(signatureBuffer.slice(0, 32), 16, 'be');
+            const s = new BN(signatureBuffer.slice(32, 64), 16, 'be');
 
             // Encode r and s into DER format
             const derSignature = { r, s };
@@ -281,16 +282,6 @@ async function main() {
 
             // Verify signature
             valid1 = key.verify(sha512HashHex, derSignature);
-
-            // Encode r and s into DER format
-            const derSignature3 = { r: s, s: r };
-
-            console.log(derSignature3);
-
-            // Verify signature
-            valid3 = key.verify(sha512HashHex, derSignature3);
-
-            // valid1 = curve.verify(sha512Hash, derSignature, Buffer.from(publicKey, 'hex'));
         } catch (error) {
             console.error(JSON.stringify({ error: error.message }));
         }
