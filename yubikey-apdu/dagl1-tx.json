@@ -1,0 +1,19 @@
+{
+    "value": {
+        "source": "DAG53VFwtir9K3WfeCLU7EVsmhJGYZtwf9YJJE1J",
+        "destination": "DAG08TSeWZhT9GwemE5ioxRZZzLgYTVHVTp3r9g2",
+        "amount": 100000000,
+        "fee": 0,
+        "parent": {
+            "ordinal": 0,
+            "hash": ""
+        },
+        "salt": "8785890371517585"
+    },
+    "proofs": [
+        {
+            "id": "98a5ecbb2e3738c1021f980017a2f47314288e41ab1c435cfceef00a5e63276933ff480a6bd607f80729204c16c9d2d092a187767c2928008d146197f5fe43c3",
+            "signature": "30440220942ad57da0c293e68a8205c405820d4faf27b4de08541cdf517f2b7035d2b7d002201ff6e61dea9af5e2b518ddb6b45fa2c0e199d3a0f6eeb182c907fdcdac307faf"
+        }
+    ]
+}
