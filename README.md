@@ -53,7 +53,7 @@ Installation instructions for GPG can be found [here](https://gnupg.org/download
 
 The smard card service must be running.
 
-### Prepare the Yubikey
+## Prepare the Yubikey
 
 When you buy a new Yubikey, plug it into your computer and run `gpg --card-status`, it looks like this:
 
@@ -252,3 +252,81 @@ Touch policy for slot SIG set.
 Now after entering the pin somebody needs to physically touch the Yubikey for the signature to be generated. This protects the key from a leaked PIN code. For more details, see `ykman openpgp keys set-touch -h`.
 
 ℹ️ The Yubikey touch policy can also be changed using the Yubikey Manager GUI.
+
+## Signing Proccess under the hood
+
+prepared transaction with hash: `82dc7a455095b3a67c484693249499f6790251833185b8c41cf44f9addb65e31`
+
+```json
+{
+    "value": {
+        "source": "DAG53VFwtir9K3WfeCLU7EVsmhJGYZtwf9YJJE1J",
+        "destination": "DAG08TSeWZhT9GwemE5ioxRZZzLgYTVHVTp3r9g2",
+        "amount": 100000000,
+        "fee": 0,
+        "parent": {
+            "ordinal": 0,
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "salt": "8824239026179262"
+    },
+    "proofs": []
+}
+```
+
+The Stargazer Wallet extension will use the browsers native messaging capabilities to call the locally installed `yubikey-bridge` with this request:
+
+```json
+{
+    "command": "signHash",
+    "expectedUncompressedPublicKey": "0498a5ecbb2e3738c1021f980017a2f47314288e41ab1c435cfceef00a5e63276933ff480a6bd607f80729204c16c9d2d092a187767c2928008d146197f5fe43c3",
+    "sha512DigestToSign": "f7564babead48166c9444b7ea38195074da660e64a57853954adfe56c3449de97dc356559337d1c2855e52cd647d913fb11fe9c81ec2fb5bee94bf9f13082966",
+    "yubikeyPin": "123456"
+}
+```
+
+After the `yubikey-bridge` has finished processing the request, it will respond with the signature data:
+
+```json
+{
+    "publicKey": "0498a5ecbb2e3738c1021f980017a2f47314288e41ab1c435cfceef00a5e63276933ff480a6bd607f80729204c16c9d2d092a187767c2928008d146197f5fe43c3",
+    "digestSigned": "f7564babead48166c9444b7ea38195074da660e64a57853954adfe56c3449de97dc356559337d1c2855e52cd647d913fb11fe9c81ec2fb5bee94bf9f13082966",
+    "signatureRaw": "4a96924a09c21dd992c500112c18708f45d73971723e84b2753ec214b1f66cf277c18cf96bf12127f8b14a6c990d59acffa1d898293e8aaab720fe41da7e7867",
+    "signatureAsnDer": "304402204a96924a09c21dd992c500112c18708f45d73971723e84b2753ec214b1f66cf2022077c18cf96bf12127f8b14a6c990d59acffa1d898293e8aaab720fe41da7e7867"
+}
+```
+
+The Wallet then checks if the signature is signed with the expected public key, if that key derived the _From_ DAG address, and if the signature is valid:
+
+- _From_ public key: `0498a5ecbb2e3738c1021f980017a2f47314288e41ab1c435cfceef00a5e63276933ff480a6bd607f80729204c16c9d2d092a187767c2928008d146197f5fe43c3`
+- Signature public key: `0498a5ecbb2e3738c1021f980017a2f47314288e41ab1c435cfceef00a5e63276933ff480a6bd607f80729204c16c9d2d092a187767c2928008d146197f5fe43c3`
+- Signature public key inferred address: `DAG53VFwtir9K3WfeCLU7EVsmhJGYZtwf9YJJE1J`
+- Tx Hash: `82dc7a455095b3a67c484693249499f6790251833185b8c41cf44f9addb65e31`
+- Signed digest: `f7564babead48166c9444b7ea38195074da660e64a57853954adfe56c3449de97dc356559337d1c2855e52cd647d913fb11fe9c81ec2fb5bee94bf9f13082966`
+- Signature raw: `4a96924a09c21dd992c500112c18708f45d73971723e84b2753ec214b1f66cf277c18cf96bf12127f8b14a6c990d59acffa1d898293e8aaab720fe41da7e7867`
+- Signature ASN.1 DER: `304402204a96924a09c21dd992c500112c18708f45d73971723e84b2753ec214b1f66cf2022077c18cf96bf12127f8b14a6c990d59acffa1d898293e8aaab720fe41da7e7867`
+- dag4.keyStore.verify result: `true`
+
+It will then add the signature as a proof to the transaction and send it to the network:
+
+```json
+{
+    "value": {
+        "source": "DAG53VFwtir9K3WfeCLU7EVsmhJGYZtwf9YJJE1J",
+        "destination": "DAG08TSeWZhT9GwemE5ioxRZZzLgYTVHVTp3r9g2",
+        "amount": 100000000,
+        "fee": 0,
+        "parent": {
+            "ordinal": 0,
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "salt": "8824239026179262"
+    },
+    "proofs": [
+        {
+            "id": "98a5ecbb2e3738c1021f980017a2f47314288e41ab1c435cfceef00a5e63276933ff480a6bd607f80729204c16c9d2d092a187767c2928008d146197f5fe43c3",
+            "signature": "304402204a96924a09c21dd992c500112c18708f45d73971723e84b2753ec214b1f66cf2022077c18cf96bf12127f8b14a6c990d59acffa1d898293e8aaab720fe41da7e7867"
+        }
+    ]
+}
+```
