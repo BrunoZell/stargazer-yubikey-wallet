@@ -40,6 +40,8 @@ To install dependencies, run `yarn install` from both the root of the repository
     - Install the `yubikey-bridge` executable in your user directory `~/YubikeyWallet`
     - Register the `yubikey-bridge` executable as a native messaging host with the Google Chrome browser
 
+The current implementation expects `yubikey-apdu> node yubikey-apdu.js` to be running in the background.
+
 ### Install GPG
 
 The Yubikey Bridge expects `gpg` to be an available command on your system. It uses `gpg` to extract the public key stored on the YubiKey and to sign messages with the private key stored on the YubiKey.
@@ -255,7 +257,7 @@ Now after entering the pin somebody needs to physically touch the Yubikey for th
 
 ## Signing Proccess under the hood
 
-prepared transaction with hash: `82dc7a455095b3a67c484693249499f6790251833185b8c41cf44f9addb65e31`
+Stargazer prepares a transaction with hash: `82dc7a455095b3a67c484693249499f6790251833185b8c41cf44f9addb65e31`
 
 ```json
 {
@@ -284,6 +286,68 @@ The Stargazer Wallet extension will use the browsers native messaging capabiliti
     "yubikeyPin": "123456"
 }
 ```
+
+The bridge then calls `gpg --card-status` to do some preliminary checks, e.g. chcking that the signature key exists and is of type `secp256k1`.
+
+It then proceeds to execute raw APDU commands to sign the message:
+
+First, the OpenPGP APDU `00A4040006D27600012401` makes the Yubikey select the OpenPGP applet. The typical response is `9000`: Success
+
+Second, the GET PUBLIC KEY APDU is executed:
+
+- `c=00`: Default command class
+- `i=47`: Generate asymmetric key pair
+- `p1=81`: Reading of actual public key
+- `p2=00`
+- `lc=000002`
+- `le=B600`: Signature key
+- `em=0000`
+
+Extracting the public key in is optional but useful for verification. A possible response might look like: `7f494386410498a5ecbb2e3738c1021f980017a2f47314288e41ab1c435cfceef00a5e63276933ff480a6bd607f80729204c16c9d2d092a187767c2928008d146197f5fe43c39000`
+
+Deconstructed this means:
+
+- `7f49`: Response success
+- `43`: Length in bytes of remaining result. `43` in hex is 67 in decimal.
+- `86`: Constant for _ECDSA Signature_, as the Signature key on this Yubikey is of type `secp256k1`
+- `41`: Length of following key. `41` in hex is 65 in decimal
+- `04`: First part of the public key, with `04` indicating an uncompressed public key
+- `98a5ecbb2e3738c1021f980017a2f47314288e41ab1c435cfceef00a5e63276933ff480a6bd607f80729204c16c9d2d092a187767c2928008d146197f5fe43c3`: The 64 byte public key containing `r` and `s` (both 32 bytes) according to my tests
+- `9000` Success status word
+
+(Reference _7.2.14 GENERATE ASYMMETRIC KEY PAIR_ on page 74 in the [OpenPGP Smart Card Spec](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.pdf))
+
+Then the PIN APDU:
+
+- `c=00`: Default command class
+- `i=20`: Instruction byte for VERIFY
+- `p1=00`
+- `p2=81`: Must be 81 for SIGN as specified in 7.2.10
+- `lc=06`: Pin length in bytes, hex encoded
+- `data=313233343536`: hex-encoded default pin `123456`
+
+Verifying the pin is a prerequisite for the following signing operation to work. Normally just `9000`: Success is returned.
+
+(Reference _7.2.2 VERIFY_ on page 52 in the [OpenPGP Smart Card Spec](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.pdf))
+
+Finally, the SIGN APDU:
+
+- `c=00`: Default command class
+- `i=2A`: Instruction byte for PERFORM SECURITY OPERATION
+- `p1=9E`: 9E specifies that the operation is to compute a digital signature
+- `p2=9A`: 9A specifies that the data is a hash that needs to be signed
+- `lc=40`: hex for 64, so 512 bits for a SHA512
+- `data=9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043`: hex-encoded [SHA512 of UTF8-encoded string `hello`](https://emn178.github.io/online-tools/sha512.html?input=68656c6c6f&input_type=hex&output_type=hex&hmac_enabled=0&hmac_input_type=utf-8) used as digest to sign
+- `le=00`
+
+With a response looking like: `af679c9010968004f5b3b6dc23795a743676dee39c4f214426f43b703a244448129ce9b72177bc6647ae2cb9caa0af7d26336a4daa8e67fad253b1b8c02a3f829000`
+
+Deconstructed this means:
+
+- `af679c9010968004f5b3b6dc23795a743676dee39c4f214426f43b703a244448129ce9b72177bc6647ae2cb9caa0af7d26336a4daa8e67fad253b1b8c02a3f82`: The 64 byte digital signature consisting of a 32 byte `r` and 32 byte `s`
+- `9000` Success status word
+
+(Reference _7.2.10 PSO: COMPUTE DIGITAL SIGNATURE_ on page 63 in the [OpenPGP Smart Card Spec](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.pdf))
 
 After the `yubikey-bridge` has finished processing the request, it will respond with the signature data:
 
@@ -330,3 +394,5 @@ It will then add the signature as a proof to the transaction and send it to the 
     ]
 }
 ```
+
+And now the transaction will be sorted into the next DAG L1 block. Finish! 🎉
