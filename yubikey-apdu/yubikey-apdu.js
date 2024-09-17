@@ -2,6 +2,7 @@ const pcsclite = require('pcsclite');
 const fs = require('fs');
 const http = require('http');
 const BN = require("bn.js");
+const asn = require('asn1.js');
 
 const { keyStore } = require('@stardust-collective/dag4-keystore');
 
@@ -353,23 +354,26 @@ const server = http.createServer(async (req, res) => {
                 const r = new BN(signatureBuffer.slice(0, 32), 16, 'be');
                 const s = new BN(signatureBuffer.slice(32, 64), 16, 'be');
 
-                // Encode r and s into ASN.1 DER format
-                const derSignatureAsn = Buffer.concat([
-                    Buffer.from([0x30]), // SEQUENCE tag
-                    Buffer.from([0x44]), // Length of the sequence (0x44 = 68 bytes)
-                    Buffer.from([0x02]), // INTEGER tag
-                    Buffer.from([0x20]), // Length of r (0x20 = 32 bytes)
-                    r.toArrayLike(Buffer, 'be', 32), // r value
-                    Buffer.from([0x02]), // INTEGER tag
-                    Buffer.from([0x20]), // Length of s (0x20 = 32 bytes)
-                    s.toArrayLike(Buffer, 'be', 32)  // s value
-                ]).toString('hex');
+                // Define the ASN.1 structure
+                const RSASignature = asn.define('RSASignature', function () {
+                  this.seq().obj(
+                    this.key('r').int(),
+                    this.key('s').int()
+                  );
+                });
+
+                // Values for r and s
+                const rr = new asn.bignum(r);
+                const ss = new asn.bignum(s);
+
+                // Encode the signature as ASN.1 DER
+                const asn1Der = RSASignature.encode({ r: rr, s: ss }, 'der').toString('hex');
 
                 const response = JSON.stringify({
                     publicKey: publicKey,
                     digestSigned: hash,
                     signatureRaw: signature,
-                    signatureAsnDer: derSignatureAsn
+                    signatureAsnDer: asn1Der
                 });
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
