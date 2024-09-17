@@ -25,3 +25,15 @@ Just as the `yubikey-bridge` would do:
 ```cmd
 curl -X POST http://localhost:3333/sign -H "Content-Type: application/json" -d @apdu-payload.json
 ```
+
+### Post signed transaction
+
+```cmd
+curl -X POST "https://l1-lb-mainnet.constellationnetwork.io/transactions" -H "accept: application/json" -H "Content-Type: application/json" -d @dagl1-tx.json
+```
+
+### Get last transaction reference
+
+```cmd
+curl -X GET "https://l1-lb-mainnet.constellationnetwork.io/transactions/last-reference/DAG3hZTBgtb2iH9ZdLNvaKqPT4ZncCuW6uYxZack" -H "accept: application/json"
+```
