@@ -65,7 +65,7 @@ function readMessage() {
         setTimeout(() => {
             process.stdin.removeListener('data', onData);
             reject(new Error('Timeout waiting for message'));
-        }, 5000); // 5 seconds timeout
+        }, 120000); // 120 seconds timeout
     });
 }
 
